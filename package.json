@@ -1,0 +1,8 @@
+{
+  "name": "drboom-sounds",
+  "private": true,
+  "description": "Claude Code plugin that plays your own sounds on hook events",
+  "scripts": {
+    "check": "sh scripts/check.sh"
+  }
+}

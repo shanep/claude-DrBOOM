@@ -1,0 +1,26 @@
+{
+  "description": "Play a sound from the active profile on Stop, Notification and PermissionRequest",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["Stop"], "async": true }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["Notification"], "async": true }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["PermissionRequest"], "async": true }
+        ]
+      }
+    ]
+  }
+}
