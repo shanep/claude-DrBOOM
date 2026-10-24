@@ -17,6 +17,7 @@ trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/sounds/default" "$tmp/sounds/boom" "$tmp/data"
 : >"$tmp/sounds/default/Stop.wav"
 : >"$tmp/sounds/default/Notification.mp3"
+: >"$tmp/sounds/default/SessionEnd.wav"
 : >"$tmp/sounds/boom/Stop.aiff"
 
 export CLAUDE_PLUGIN_ROOT="$tmp" CLAUDE_PLUGIN_DATA="$tmp/data" CLAUDE_CONFIG_DIR="$tmp/config" DRBOOM_SOUNDS_DRY_RUN=1
@@ -33,6 +34,10 @@ expect() {
 expect "default profile" "$(sh "$here/play.sh" Stop)" "play $tmp/sounds/default/Stop.wav"
 expect "no file is quiet" "$(sh "$here/play.sh" PermissionRequest)" ""
 expect "no event is quiet" "$(sh "$here/play.sh")" ""
+expect "end plays on exit" "$(echo '{"hook_event_name":"SessionEnd","reason":"prompt_input_exit"}' | sh "$here/play.sh" SessionEnd)" "play $tmp/sounds/default/SessionEnd.wav"
+expect "end is quiet on clear" "$(echo '{"hook_event_name":"SessionEnd","reason":"clear"}' | sh "$here/play.sh" SessionEnd)" ""
+expect "end is quiet on resume" "$(echo '{"hook_event_name": "SessionEnd", "reason": "resume"}' | sh "$here/play.sh" SessionEnd)" ""
+expect "end plays with no input" "$(sh "$here/play.sh" SessionEnd </dev/null)" "play $tmp/sounds/default/SessionEnd.wav"
 
 sh "$here/profile.sh" boom >/dev/null
 expect "saved profile" "$(sh "$here/play.sh" Stop)" "play $tmp/sounds/boom/Stop.aiff"

@@ -10,6 +10,14 @@ event=${1:-}
 [ -n "$event" ] || exit 0
 muted && exit 0
 
+# /clear and /resume end the session and start another right away, so only the
+# start sound plays. Claude Code sends the reason as JSON on stdin.
+if [ "$event" = SessionEnd ] && [ ! -t 0 ]; then
+    case $(cat) in
+        *'"reason"'*:*'"clear"'* | *'"reason"'*:*'"resume"'*) exit 0 ;;
+    esac
+fi
+
 file=$(find_sound "$(active_profile)" "$event") ||
     file=$(find_sound default "$event") ||
     exit 0

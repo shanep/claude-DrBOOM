@@ -69,7 +69,7 @@ sounds/
     PermissionRequest.wav  A tool call is waiting for your approval
     SubagentStop.wav       A subagent finished
     Stop.wav               Claude finished responding
-    SessionEnd.wav         The session exits
+    SessionEnd.wav         The session exits (not on /clear or /resume)
   boom/
     Stop.mp3
 ```
