@@ -4,21 +4,8 @@
 
 root=${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}
 # Hooks get CLAUDE_PLUGIN_DATA from Claude Code, and the profile skill passes
-# the same path with --data. The status line gets neither, so an installed
-# copy at plugins/cache/<marketplace>/<name>/<version> finds its data folder
-# at plugins/data/<name>-<marketplace>, the way Claude Code names it.
-default_data() {
-    name_dir=$(dirname "$root")
-    name=$(basename "$name_dir")
-    market_dir=$(dirname "$name_dir")
-    cache_dir=$(dirname "$market_dir")
-    if [ "$(basename "$cache_dir")" = cache ]; then
-        printf '%s/data/%s-%s\n' "$(dirname "$cache_dir")" "$name" "$(basename "$market_dir")"
-    else
-        printf '%s\n' "$HOME/.claude/plugins/data/drboom-sounds"
-    fi
-}
-data=${CLAUDE_PLUGIN_DATA:-$(default_data)}
+# the same path with --data. The fallback is only for running scripts by hand.
+data=${CLAUDE_PLUGIN_DATA:-$HOME/.claude/plugins/data/drboom-sounds}
 sounds="$root/sounds"
 
 # A profile name is a folder under sounds/, so keep it to one plain path part.

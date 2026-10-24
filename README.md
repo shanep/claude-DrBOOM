@@ -1,23 +1,15 @@
 # Dr. BOOM
 
-Dr. BOOM's Claude Code setup as one plugin. It sets the look of Claude Code,
-tells Claude what to call you, and plays your own sound files on hook events.
+Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you
+and plays your own sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
 
-## What it sets
+## Names
 
-- **Theme:** `light-daltonized`
-- **Spinner verbs:** Dr. BOOM ones ("Lighting the fuse", "Consulting Sergeant
-  Stupid") in place of the defaults
-- **Status line:** `Dr. BOOM | <model> | <folder> | <branch> | sounds: <profile>`
-- **Names:** a system prompt section telling Claude to call you Dr. BOOM! and
-  itself Sergeant Stupid
-
-These come from a hooks module (`hooks/register.ts`) that answers Claude
-Code's settings reads. Your own settings files still win, so picking a theme
-in `/config` overrides the plugin's.
+A hooks module (`hooks/register.ts`) adds a system prompt section telling
+Claude to call you Dr. BOOM! and itself Sergeant Stupid.
 
 ## Install
 
@@ -82,5 +74,5 @@ npm run check
 ```
 
 This runs shellcheck on the scripts, checks the JSON files, and tests profile
-selection and the status line against a throwaway sounds folder. CI runs the same command on
+selection against a throwaway sounds folder. CI runs the same command on
 every push.

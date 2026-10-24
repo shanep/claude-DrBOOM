@@ -56,16 +56,5 @@ sh "$here/profile.sh" unmute >/dev/null
 expect "unmute" "$(sh "$here/play.sh" Stop)" "play $tmp/sounds/boom/Stop.aiff"
 expect "env mute" "$(DRBOOM_SOUNDS_MUTE=1 sh "$here/play.sh" Stop)" ""
 
-git -C "$tmp" init -q -b boom
-expect "status line" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | sh "$here/statusline.sh")" "Dr. BOOM | Opus | $(basename "$tmp") | boom | sounds: boom"
-sh "$here/profile.sh" mute >/dev/null
-expect "status line muted" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp/data" | sh "$here/statusline.sh")" "Dr. BOOM | data | boom | muted"
-sh "$here/profile.sh" unmute >/dev/null
-
-mkdir -p "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts" "$tmp/plugins/data/drboom-sounds-shanep"
-cp "$here"/*.sh "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts/"
-echo boom >"$tmp/plugins/data/drboom-sounds-shanep/profile"
-expect "installed copy finds its data" "$(echo '{}' | env -u CLAUDE_PLUGIN_ROOT -u CLAUDE_PLUGIN_DATA sh "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts/statusline.sh" | sed 's/.*| //')" "sounds: boom"
-
 [ "$fail" -eq 0 ] && echo "All checks passed."
 exit "$fail"

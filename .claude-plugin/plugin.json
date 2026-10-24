@@ -1,8 +1,8 @@
 {
   "name": "drboom-sounds",
   "displayName": "Dr. BOOM",
-  "version": "0.4.1",
-  "description": "Dr. BOOM's Claude Code setup: theme, status line, spinner verbs, names, and switchable sound profiles",
+  "version": "0.4.2",
+  "description": "Dr. BOOM's Claude Code setup: names and switchable sound profiles",
   "author": {
     "name": "Shane Panter",
     "email": "shanepanter@boisestate.edu"
