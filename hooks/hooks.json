@@ -1,10 +1,17 @@
 {
-  "description": "Play a sound from the active profile on Stop, Notification and PermissionRequest",
+  "description": "Play a sound from the active profile on session, prompt, subagent, permission, notification and stop events",
   "hooks": {
-    "Stop": [
+    "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["Stop"], "async": true }
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["SessionStart"], "async": true }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["UserPromptSubmit"], "async": true }
         ]
       }
     ],
@@ -19,6 +26,27 @@
       {
         "hooks": [
           { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["PermissionRequest"], "async": true }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["SubagentStop"], "async": true }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["Stop"], "async": true }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PLUGIN_ROOT}/scripts/play.sh", "args": ["SessionEnd"], "async": true }
         ]
       }
     ]

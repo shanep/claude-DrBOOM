@@ -1,7 +1,8 @@
 # Dr. BOOM Sounds
 
-A Claude Code plugin that plays your own sound files when Claude finishes a
-reply, needs your attention, or asks for permission. Sounds are grouped into
+A Claude Code plugin that plays your own sound files when a session starts
+or ends, when you send a prompt, when Claude finishes a reply or a subagent,
+needs your attention, or asks for permission. Sounds are grouped into
 profiles so you can switch the whole set with one command.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
@@ -24,13 +25,18 @@ claude --plugin-dir ~/repos/claude-DrBOOM
 
 Each profile is a folder under `sounds/`, and each file is named after the
 event it plays on. The extension can be anything your player understands.
+Leave out any event you don't want a sound for.
 
 ```
 sounds/
   default/
-    Stop.wav               Claude finished responding
+    SessionStart.wav       A session starts or resumes
+    UserPromptSubmit.wav   You sent a prompt
     Notification.wav       Claude needs your attention
     PermissionRequest.wav  A tool call is waiting for your approval
+    SubagentStop.wav       A subagent finished
+    Stop.wav               Claude finished responding
+    SessionEnd.wav         The session exits
   boom/
     Stop.mp3
 ```

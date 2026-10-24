@@ -17,7 +17,7 @@ fi
 # shellcheck source=scripts/lib.sh
 . "$(dirname "$0")/lib.sh"
 
-events="Stop Notification PermissionRequest"
+events="SessionStart UserPromptSubmit Notification PermissionRequest SubagentStop Stop SessionEnd"
 
 list() {
     active=$(active_profile)
