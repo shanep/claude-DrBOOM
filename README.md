@@ -1,7 +1,7 @@
 # Dr. BOOM
 
-Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you
-and plays your own sound files on hook events.
+Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you,
+prints a status line, and plays your own sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
@@ -14,6 +14,21 @@ Claude to call you Dr. BOOM! and itself Sergeant Stupid.
 The fullscreen TUI is not set here. Claude Code drops what a plugin's
 `settings.read` hook answers, and it picks the renderer at startup anyway, so
 put `"tui": "fullscreen"` in `~/.claude/settings.json` instead.
+
+## Status line
+
+`scripts/statusline.sh` prints
+`Dr. BOOM | <model> | <folder> | <branch> | sounds: <profile>`. A plugin cannot
+set the status line either, so point `~/.claude/settings.json` at the newest
+installed copy:
+
+```json
+"statusLine": {
+  "type": "command",
+  "command": "sh \"$(ls -td ~/.claude/plugins/cache/shanep/drboom-sounds/*/ | head -n 1)scripts/statusline.sh\"",
+  "padding": 0
+}
+```
 
 ## Install
 
@@ -78,8 +93,8 @@ npm run check
 ```
 
 This runs shellcheck on the scripts, checks the JSON files, and tests profile
-selection against a throwaway sounds folder. CI runs the same command on
-every push, and so does a pre-push hook once you turn it on:
+selection and the status line against a throwaway sounds folder. CI runs the
+same command on every push, and so does a pre-push hook once you turn it on:
 
 ```
 git config core.hooksPath .githooks
