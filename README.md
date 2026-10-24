@@ -1,15 +1,20 @@
 # Dr. BOOM
 
-Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you
-and plays your own sound files on hook events.
+Dr. BOOM's Claude Code setup as one plugin. It turns on the fullscreen TUI,
+tells Claude what to call you, and plays your own sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
 
-## Names
+## What it sets
 
-A hooks module (`hooks/register.ts`) adds a system prompt section telling
-Claude to call you Dr. BOOM! and itself Sergeant Stupid.
+A hooks module (`hooks/register.ts`) sets two things:
+
+- **TUI:** `fullscreen`, so the prompt stays at the bottom of the terminal.
+  Your own settings files still win, so picking a TUI in `/config` overrides
+  the plugin's.
+- **Names:** a system prompt section telling Claude to call you Dr. BOOM! and
+  itself Sergeant Stupid
 
 ## Install
 
