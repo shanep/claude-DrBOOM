@@ -29,7 +29,6 @@ export const register: Register = on => {
     if (e.source !== undefined) return settings
     return {
       theme: 'light-daltonized',
-      tui: 'fullscreen',
       spinnerVerbs: { mode: 'replace', verbs: VERBS },
       statusLine: {
         type: 'command',

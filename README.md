@@ -9,7 +9,6 @@ whichever it finds first).
 ## What it sets
 
 - **Theme:** `light-daltonized`
-- **TUI:** `fullscreen`
 - **Spinner verbs:** Dr. BOOM ones ("Lighting the fuse", "Consulting Sergeant
   Stupid") in place of the defaults
 - **Status line:** `Dr. BOOM | <model> | <folder> | <branch> | sounds: <profile>`
