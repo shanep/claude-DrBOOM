@@ -1,6 +1,6 @@
 #!/bin/sh
 # Status line: model, folder, git branch, worktree, sessions in the same repo
-# and sound profile. Claude Code pipes the session as JSON on stdin. Parsed
+# and sound profile, wrapped to the terminal width. Claude Code pipes the session as JSON on stdin. Parsed
 # with sed so it needs nothing extra. It runs on every refresh, so it sticks to
 # shell built-ins and starts only git and two seds.
 
@@ -101,5 +101,37 @@ if muted; then
     line="$line | sounds: muted"
 else
     line="$line | sounds: $(active_profile)"
+fi
+
+# Claude Code sets COLUMNS to the terminal width and shows each line of output
+# as its own row. Break between fields so no row runs past the edge, with two
+# columns to spare for the margin.
+width=$((${COLUMNS:-0} - 2))
+if [ "$width" -gt 0 ] && [ ${#line} -gt "$width" ]; then
+    rest=$line
+    out=
+    row=
+    while [ -n "$rest" ]; do
+        case $rest in
+            *" | "*)
+                part=${rest%%" | "*}
+                rest=${rest#*" | "}
+                ;;
+            *)
+                part=$rest
+                rest=
+                ;;
+        esac
+        if [ -z "$row" ]; then
+            row=$part
+        elif [ $((${#row} + 3 + ${#part})) -le "$width" ]; then
+            row="$row | $part"
+        else
+            out="$out$row
+"
+            row=$part
+        fi
+    done
+    line="$out$row"
 fi
 printf '%s\n' "$line"

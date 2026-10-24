@@ -22,10 +22,11 @@ put `"tui": "fullscreen"` in `~/.claude/settings.json` instead.
 `Dr. BOOM | model: <model> | folder: <folder> | branch: <branch> | sounds: <profile>`,
 with `| worktree: <name>` after the branch when the folder is a linked git
 worktree. `| sessions: <n>` before the profile counts the running Claude Code
-sessions in the same repo, this one and any in its worktrees included. A
+sessions in the same repo, this one and any in its worktrees included. When the
+line is wider than the terminal, it wraps between fields onto more rows. A
 plugin cannot set the status line either, so point `~/.claude/settings.json`
-at the installed copy. The path comes from Claude Code's install record because the
-version is part of it:
+at the installed copy. The path comes from Claude Code's install record because
+the version is part of it:
 
 ```json
 "statusLine": {

@@ -20,7 +20,7 @@ mkdir -p "$tmp/sounds/default" "$tmp/sounds/boom" "$tmp/data"
 : >"$tmp/sounds/boom/Stop.aiff"
 
 export CLAUDE_PLUGIN_ROOT="$tmp" CLAUDE_PLUGIN_DATA="$tmp/data" CLAUDE_CONFIG_DIR="$tmp/config" DRBOOM_SOUNDS_DRY_RUN=1
-unset DRBOOM_SOUNDS_PROFILE DRBOOM_SOUNDS_MUTE
+unset DRBOOM_SOUNDS_PROFILE DRBOOM_SOUNDS_MUTE COLUMNS
 
 fail=0
 expect() {
@@ -59,6 +59,10 @@ expect "env mute" "$(DRBOOM_SOUNDS_MUTE=1 sh "$here/play.sh" Stop)" ""
 
 git -C "$tmp" init -q -b boom
 expect "status line" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | sh "$here/statusline.sh")" "Dr. BOOM | model: Opus | folder: $(basename "$tmp") | branch: boom | sounds: boom"
+expect "status line wraps" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | COLUMNS=42 sh "$here/statusline.sh")" "Dr. BOOM | model: Opus
+folder: $(basename "$tmp") | branch: boom
+sounds: boom"
+expect "status line fits" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | COLUMNS=200 sh "$here/statusline.sh")" "Dr. BOOM | model: Opus | folder: $(basename "$tmp") | branch: boom | sounds: boom"
 git -C "$tmp" -c user.name=check -c user.email=check@example.com commit -q --allow-empty -m init
 git -C "$tmp" worktree add -q -b wt-branch "$tmp/wt"
 expect "status line in a worktree" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp/wt" | sh "$here/statusline.sh")" "Dr. BOOM | folder: wt | branch: wt-branch | worktree: wt | sounds: boom"
