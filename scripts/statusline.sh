@@ -1,5 +1,5 @@
 #!/bin/sh
-# Status line: model, folder, git branch and sound profile. Claude Code pipes
+# Status line: model, folder, git branch, worktree and sound profile. Claude Code pipes
 # the session as JSON on stdin. Parsed with sed so it needs nothing extra.
 
 # shellcheck source=scripts/lib.sh
@@ -21,6 +21,12 @@ line="Dr. BOOM"
 line="$line | $(basename "$dir")"
 if branch=$(git -C "$dir" symbolic-ref --short -q HEAD 2>/dev/null); then
     line="$line | $branch"
+fi
+# A linked worktree keeps its own git dir apart from the repo's shared one.
+git_dir=$(git -C "$dir" rev-parse --path-format=absolute --git-dir 2>/dev/null)
+common_dir=$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+if [ -n "$git_dir" ] && [ "$git_dir" != "$common_dir" ]; then
+    line="$line | worktree"
 fi
 if muted; then
     line="$line | muted"
