@@ -1,8 +1,8 @@
 {
   "name": "drboom-sounds",
   "displayName": "Dr. BOOM",
-  "version": "0.4.3",
-  "description": "Dr. BOOM's Claude Code setup: fullscreen TUI, names and switchable sound profiles",
+  "version": "0.4.4",
+  "description": "Dr. BOOM's Claude Code setup: names and switchable sound profiles",
   "author": {
     "name": "Shane Panter",
     "email": "shanepanter@boisestate.edu"

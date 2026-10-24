@@ -1,20 +1,19 @@
 # Dr. BOOM
 
-Dr. BOOM's Claude Code setup as one plugin. It turns on the fullscreen TUI,
-tells Claude what to call you, and plays your own sound files on hook events.
+Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you
+and plays your own sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
 
-## What it sets
+## Names
 
-A hooks module (`hooks/register.ts`) sets two things:
+A hooks module (`hooks/register.ts`) adds a system prompt section telling
+Claude to call you Dr. BOOM! and itself Sergeant Stupid.
 
-- **TUI:** `fullscreen`, so the prompt stays at the bottom of the terminal.
-  Your own settings files still win, so picking a TUI in `/config` overrides
-  the plugin's.
-- **Names:** a system prompt section telling Claude to call you Dr. BOOM! and
-  itself Sergeant Stupid
+The fullscreen TUI is not set here. Claude Code drops what a plugin's
+`settings.read` hook answers, and it picks the renderer at startup anyway, so
+put `"tui": "fullscreen"` in `~/.claude/settings.json` instead.
 
 ## Install
 
@@ -80,4 +79,8 @@ npm run check
 
 This runs shellcheck on the scripts, checks the JSON files, and tests profile
 selection against a throwaway sounds folder. CI runs the same command on
-every push.
+every push, and so does a pre-push hook once you turn it on:
+
+```
+git config core.hooksPath .githooks
+```
