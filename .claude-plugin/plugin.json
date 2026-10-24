@@ -1,12 +1,16 @@
 {
   "name": "drboom-sounds",
   "displayName": "Dr. BOOM Sounds",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Play your own sounds when Claude finishes, needs attention, or asks for permission, with switchable sound profiles",
   "author": {
     "name": "Shane Panter",
     "email": "shanepanter@boisestate.edu"
   },
   "repository": "https://github.com/shanep/claude-DrBOOM",
-  "keywords": ["sounds", "hooks", "notifications"]
+  "keywords": [
+    "sounds",
+    "hooks",
+    "notifications"
+  ]
 }
