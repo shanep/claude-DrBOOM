@@ -19,13 +19,14 @@ put `"tui": "fullscreen"` in `~/.claude/settings.json` instead.
 
 `scripts/statusline.sh` prints
 `Dr. BOOM | <model> | <folder> | <branch> | sounds: <profile>`. A plugin cannot
-set the status line either, so point `~/.claude/settings.json` at the newest
-installed copy:
+set the status line either, so point `~/.claude/settings.json` at the
+installed copy. The path comes from Claude Code's install record because the
+version is part of it:
 
 ```json
 "statusLine": {
   "type": "command",
-  "command": "sh \"$(ls -td ~/.claude/plugins/cache/shanep/drboom-sounds/*/ | head -n 1)scripts/statusline.sh\"",
+  "command": "sh \"$(jq -r '.plugins[\"drboom-sounds@shanep\"][0].installPath' ~/.claude/plugins/installed_plugins.json)/scripts/statusline.sh\"",
   "padding": 0
 }
 ```
