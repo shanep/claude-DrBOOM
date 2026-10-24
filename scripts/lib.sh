@@ -3,6 +3,7 @@
 # mute state. Source it, don't run it.
 
 root=${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}
+root=${root%/}
 # Hooks get CLAUDE_PLUGIN_DATA from Claude Code, and the profile skill passes
 # the same path with --data. The status line gets neither, so an installed
 # copy at plugins/cache/<marketplace>/<name>/<version> finds its data folder
