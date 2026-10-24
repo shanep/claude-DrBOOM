@@ -10,8 +10,8 @@ whichever it finds first).
 ## Install
 
 ```
-/plugin marketplace add shanep/claude-DrBOOM
-/plugin install drboom-sounds@drboom
+/plugin marketplace add shanep/claude-plugins
+/plugin install drboom-sounds@shanep
 ```
 
 To try a local checkout without installing it:
