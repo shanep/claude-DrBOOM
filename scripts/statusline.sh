@@ -17,19 +17,20 @@ dir=$(field current_dir)
 [ -n "$dir" ] || dir=$(pwd)
 
 line="Dr. BOOM"
-[ -n "$model" ] && line="$line | $model"
-line="$line | $(basename "$dir")"
+[ -n "$model" ] && line="$line | model: $model"
+line="$line | folder: $(basename "$dir")"
 if branch=$(git -C "$dir" symbolic-ref --short -q HEAD 2>/dev/null); then
-    line="$line | $branch"
+    line="$line | branch: $branch"
 fi
-# A linked worktree keeps its own git dir apart from the repo's shared one.
+# A linked worktree keeps its own git dir apart from the repo's shared one, at
+# <common dir>/worktrees/<name>.
 git_dir=$(git -C "$dir" rev-parse --path-format=absolute --git-dir 2>/dev/null)
 common_dir=$(git -C "$dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 if [ -n "$git_dir" ] && [ "$git_dir" != "$common_dir" ]; then
-    line="$line | worktree"
+    line="$line | worktree: $(basename "$git_dir")"
 fi
 if muted; then
-    line="$line | muted"
+    line="$line | sounds: muted"
 else
     line="$line | sounds: $(active_profile)"
 fi

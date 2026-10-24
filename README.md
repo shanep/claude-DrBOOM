@@ -19,8 +19,9 @@ put `"tui": "fullscreen"` in `~/.claude/settings.json` instead.
 ## Status line
 
 `scripts/statusline.sh` prints
-`Dr. BOOM | <model> | <folder> | <branch> | sounds: <profile>`, with
-`| worktree` after the branch when the folder is a linked git worktree. A
+`Dr. BOOM | model: <model> | folder: <folder> | branch: <branch> | sounds: <profile>`,
+with `| worktree: <name>` after the branch when the folder is a linked git
+worktree. A
 plugin cannot set the status line either, so point `~/.claude/settings.json`
 at the installed copy. The path comes from Claude Code's install record because the
 version is part of it:

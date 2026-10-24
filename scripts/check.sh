@@ -57,12 +57,12 @@ expect "unmute" "$(sh "$here/play.sh" Stop)" "play $tmp/sounds/boom/Stop.aiff"
 expect "env mute" "$(DRBOOM_SOUNDS_MUTE=1 sh "$here/play.sh" Stop)" ""
 
 git -C "$tmp" init -q -b boom
-expect "status line" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | sh "$here/statusline.sh")" "Dr. BOOM | Opus | $(basename "$tmp") | boom | sounds: boom"
+expect "status line" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | sh "$here/statusline.sh")" "Dr. BOOM | model: Opus | folder: $(basename "$tmp") | branch: boom | sounds: boom"
 git -C "$tmp" -c user.name=check -c user.email=check@example.com commit -q --allow-empty -m init
-git -C "$tmp" worktree add -q -b wt "$tmp/wt"
-expect "status line in a worktree" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp/wt" | sh "$here/statusline.sh")" "Dr. BOOM | wt | wt | worktree | sounds: boom"
+git -C "$tmp" worktree add -q -b wt-branch "$tmp/wt"
+expect "status line in a worktree" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp/wt" | sh "$here/statusline.sh")" "Dr. BOOM | folder: wt | branch: wt-branch | worktree: wt | sounds: boom"
 sh "$here/profile.sh" mute >/dev/null
-expect "status line muted" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp/data" | sh "$here/statusline.sh")" "Dr. BOOM | data | boom | muted"
+expect "status line muted" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp/data" | sh "$here/statusline.sh")" "Dr. BOOM | folder: data | branch: boom | sounds: muted"
 sh "$here/profile.sh" unmute >/dev/null
 
 mkdir -p "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts" "$tmp/plugins/data/drboom-sounds-shanep"
