@@ -1,7 +1,7 @@
 {
   "name": "drboom-sounds",
   "displayName": "Dr. BOOM",
-  "version": "0.4.8",
+  "version": "0.4.9",
   "description": "Dr. BOOM's Claude Code setup: names, a status line and switchable sound profiles",
   "author": {
     "name": "Shane Panter",

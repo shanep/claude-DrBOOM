@@ -18,7 +18,7 @@ mkdir -p "$tmp/sounds/default" "$tmp/sounds/boom" "$tmp/data"
 : >"$tmp/sounds/default/Notification.mp3"
 : >"$tmp/sounds/boom/Stop.aiff"
 
-export CLAUDE_PLUGIN_ROOT="$tmp" CLAUDE_PLUGIN_DATA="$tmp/data" DRBOOM_SOUNDS_DRY_RUN=1
+export CLAUDE_PLUGIN_ROOT="$tmp" CLAUDE_PLUGIN_DATA="$tmp/data" CLAUDE_CONFIG_DIR="$tmp/config" DRBOOM_SOUNDS_DRY_RUN=1
 unset DRBOOM_SOUNDS_PROFILE DRBOOM_SOUNDS_MUTE
 
 fail=0
@@ -64,6 +64,22 @@ expect "status line in a worktree" "$(printf '{"workspace":{"current_dir":"%s"}}
 sh "$here/profile.sh" mute >/dev/null
 expect "status line muted" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp/data" | sh "$here/statusline.sh")" "Dr. BOOM | folder: data | branch: boom | sounds: muted"
 sh "$here/profile.sh" unmute >/dev/null
+
+# Two live sessions in the repo (one in the worktree), one in another repo and
+# one whose process has exited.
+mkdir -p "$tmp/config/sessions"
+sleep 30 &
+alive=$!
+sh -c : &
+dead=$!
+wait "$dead"
+printf '{"pid":%s,"cwd":"%s"}\n' "$$" "$tmp" >"$tmp/config/sessions/$$.json"
+printf '{"pid":%s,"cwd":"%s"}\n' "$alive" "$tmp/wt" >"$tmp/config/sessions/$alive.json"
+printf '{"pid":%s,"cwd":"%s"}\n' "$PPID" "$repo" >"$tmp/config/sessions/$PPID.json"
+printf '{"pid":%s,"cwd":"%s"}\n' "$dead" "$tmp" >"$tmp/config/sessions/$dead.json"
+expect "status line counts sessions" "$(printf '{"workspace":{"current_dir":"%s"}}' "$tmp" | sh "$here/statusline.sh")" "Dr. BOOM | folder: $(basename "$tmp") | branch: boom | sessions: 2 | sounds: boom"
+kill "$alive"
+wait "$alive" 2>/dev/null || true
 
 mkdir -p "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts" "$tmp/plugins/data/drboom-sounds-shanep"
 cp "$here"/*.sh "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts/"
