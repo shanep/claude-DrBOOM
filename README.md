@@ -1,12 +1,24 @@
-# Dr. BOOM Sounds
+# Dr. BOOM
 
-A Claude Code plugin that plays your own sound files when a session starts
-or ends, when you send a prompt, when Claude finishes a reply or a subagent,
-needs your attention, or asks for permission. Sounds are grouped into
-profiles so you can switch the whole set with one command.
+Dr. BOOM's Claude Code setup as one plugin. It sets the look of Claude Code,
+tells Claude what to call you, and plays your own sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
+
+## What it sets
+
+- **Theme:** `light-daltonized`
+- **TUI:** `fullscreen`
+- **Spinner verbs:** Dr. BOOM ones ("Lighting the fuse", "Consulting Major
+  Dumbass") in place of the defaults
+- **Status line:** `Dr. BOOM | <model> | <folder> | <branch> | sounds: <profile>`
+- **Names:** a system prompt section telling Claude to call you Dr. BOOM! and
+  itself Major Dumbass
+
+These come from a hooks module (`hooks/register.ts`) that answers Claude
+Code's settings reads. Your own settings files still win, so picking a theme
+in `/config` overrides the plugin's.
 
 ## Install
 
@@ -21,7 +33,12 @@ To try a local checkout without installing it:
 claude --plugin-dir ~/repos/claude-DrBOOM
 ```
 
-## Adding sounds
+## Sounds
+
+Sounds play on session start and end, when you send a prompt, when Claude
+finishes a reply or a subagent, needs your attention, or asks for permission.
+
+### Adding sounds
 
 Each profile is a folder under `sounds/`, and each file is named after the
 event it plays on. The extension can be anything your player understands.
@@ -44,7 +61,7 @@ sounds/
 If the active profile is missing a file, the plugin plays the one from
 `default` instead. If `default` doesn't have it either, it stays quiet.
 
-## Switching profiles
+### Switching profiles
 
 ```
 /drboom-sounds:profile          list profiles, * marks the active one
@@ -66,5 +83,5 @@ npm run check
 ```
 
 This runs shellcheck on the scripts, checks the JSON files, and tests profile
-selection against a throwaway sounds folder. CI runs the same command on
+selection and the status line against a throwaway sounds folder. CI runs the same command on
 every push.

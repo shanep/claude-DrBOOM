@@ -1,5 +1,6 @@
 {
   "description": "Play a sound from the active profile on session, prompt, subagent, permission, notification and stop events",
+  "modules": ["./register.ts"],
   "hooks": {
     "SessionStart": [
       {

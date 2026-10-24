@@ -1,8 +1,8 @@
 {
   "name": "drboom-sounds",
-  "displayName": "Dr. BOOM Sounds",
-  "version": "0.3.1",
-  "description": "Play your own sounds on session start and end, prompts, replies, subagents, notifications and permission requests, with switchable sound profiles",
+  "displayName": "Dr. BOOM",
+  "version": "0.4.0",
+  "description": "Dr. BOOM's Claude Code setup: theme, fullscreen TUI, status line, spinner verbs, names, and switchable sound profiles",
   "author": {
     "name": "Shane Panter",
     "email": "shanepanter@boisestate.edu"
