@@ -11,7 +11,8 @@ for f in "$repo"/.claude-plugin/*.json "$repo"/hooks/hooks.json "$repo"/package.
     jq empty "$f"
 done
 
-tmp=$(mktemp -d)
+# The real path, since git and Claude Code report folders that way.
+tmp=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$tmp"' EXIT
 mkdir -p "$tmp/sounds/default" "$tmp/sounds/boom" "$tmp/data"
 : >"$tmp/sounds/default/Stop.wav"

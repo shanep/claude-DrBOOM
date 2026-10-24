@@ -7,13 +7,14 @@ root=${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}
 # the same path with --data. The status line gets neither, so an installed
 # copy at plugins/cache/<marketplace>/<name>/<version> finds its data folder
 # at plugins/data/<name>-<marketplace>, the way Claude Code names it.
+# Built with parameter expansion, since the status line runs on every refresh.
 default_data() {
-    name_dir=$(dirname "$root")
-    name=$(basename "$name_dir")
-    market_dir=$(dirname "$name_dir")
-    cache_dir=$(dirname "$market_dir")
-    if [ "$(basename "$cache_dir")" = cache ]; then
-        printf '%s/data/%s-%s\n' "$(dirname "$cache_dir")" "$name" "$(basename "$market_dir")"
+    name_dir=${root%/*}
+    name=${name_dir##*/}
+    market_dir=${name_dir%/*}
+    cache_dir=${market_dir%/*}
+    if [ "${cache_dir##*/}" = cache ]; then
+        printf '%s/data/%s-%s\n' "${cache_dir%/*}" "$name" "${market_dir##*/}"
     else
         printf '%s\n' "$HOME/.claude/plugins/data/drboom-sounds"
     fi
@@ -33,7 +34,8 @@ active_profile() {
     if [ -n "${DRBOOM_SOUNDS_PROFILE:-}" ]; then
         printf '%s\n' "$DRBOOM_SOUNDS_PROFILE"
     elif [ -s "$data/profile" ]; then
-        head -n 1 "$data/profile"
+        IFS= read -r profile <"$data/profile" || true
+        printf '%s\n' "$profile"
     else
         echo default
     fi
