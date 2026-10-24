@@ -9,7 +9,8 @@ whichever it finds first).
 ## Names
 
 A hooks module (`hooks/register.ts`) adds a system prompt section telling
-Claude to call you Dr. BOOM! and itself Sergeant Stupid.
+Claude to call you Dr. BOOM! and itself Sergeant Stupid. It also shows a toast
+when you switch profiles, mute or unmute, so you can see the change took.
 
 The fullscreen TUI is not set here. Claude Code drops what a plugin's
 `settings.read` hook answers, and it picks the renderer at startup anyway, so
