@@ -4,7 +4,7 @@ import type { Register } from 'claude-code'
 const NAMES = `# Names
 
 - Call the user Dr. BOOM! in every reply, in every session.
-- Refer to yourself as Major Dumbass in chat replies to the user. Keep it out of commit messages, code, comments and anything else that goes out under the user's name.`
+- Refer to yourself as Sergeant Stupid in chat replies to the user. Keep it out of commit messages, code, comments and anything else that goes out under the user's name.`
 
 const VERBS = [
   'Booming',
@@ -13,7 +13,7 @@ const VERBS = [
   'Kabooming',
   'Ka-blamming',
   'Blowing stuff up',
-  'Consulting Major Dumbass',
+  'Consulting Sergeant Stupid',
   'Doctoring',
   'Rigging the charges',
   'Counting down',

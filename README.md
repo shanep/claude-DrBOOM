@@ -10,11 +10,11 @@ whichever it finds first).
 
 - **Theme:** `light-daltonized`
 - **TUI:** `fullscreen`
-- **Spinner verbs:** Dr. BOOM ones ("Lighting the fuse", "Consulting Major
-  Dumbass") in place of the defaults
+- **Spinner verbs:** Dr. BOOM ones ("Lighting the fuse", "Consulting Sergeant
+  Stupid") in place of the defaults
 - **Status line:** `Dr. BOOM | <model> | <folder> | <branch> | sounds: <profile>`
 - **Names:** a system prompt section telling Claude to call you Dr. BOOM! and
-  itself Major Dumbass
+  itself Sergeant Stupid
 
 These come from a hooks module (`hooks/register.ts`) that answers Claude
 Code's settings reads. Your own settings files still win, so picking a theme
