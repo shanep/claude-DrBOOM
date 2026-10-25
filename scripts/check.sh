@@ -62,6 +62,9 @@ sh "$here/profile.sh" unmute >/dev/null
 expect "unmute" "$(sh "$here/play.sh" Stop)" "play $tmp/sounds/boom/Stop.aiff"
 expect "env mute" "$(DRBOOM_SOUNDS_MUTE=1 sh "$here/play.sh" Stop)" ""
 
+# A pre-push hook run from a worktree gets GIT_DIR set to the real repo, and
+# git -C would then init, commit and add worktrees there instead of in $tmp.
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
 git -C "$tmp" init -q -b boom
 expect "status line" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | sh "$here/statusline.sh")" "Dr. BOOM | model: Opus | folder: $(basename "$tmp") | branch: boom | sounds: boom"
 expect "status line wraps" "$(printf '{"model":{"display_name":"Opus"},"workspace":{"current_dir":"%s"}}' "$tmp" | COLUMNS=42 sh "$here/statusline.sh")" "Dr. BOOM | model: Opus
