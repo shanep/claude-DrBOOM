@@ -242,6 +242,12 @@ export const register: Register = on => {
               {r.target === null || r.target === r.branch ? '' : ` | lands on ${r.target}`}
             </Text>
             <Text dimColor>{r.files.length === 0 ? 'No changes yet.' : `Changing ${files(r.files)}`}</Text>
+            {r.ports != null && (
+              <Text dimColor>
+                Ports {r.ports} to {r.ports + 99}
+              </Text>
+            )}
+            {r.setup != null && <Text dimColor>{r.setup}</Text>}
             {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
             {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
             {r.peers.map(peer => (

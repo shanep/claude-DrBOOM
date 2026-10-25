@@ -22,6 +22,9 @@ export type Repo = {
   peers: { topic: string | null; where: string; files: string[] }[]
   paused: { file: string; at: number }[]
   upstream: string[]
+  // Optional, since workflow 0.1.0 published neither.
+  ports?: number | null
+  setup?: string | null
 }
 
 declare module 'claude-code' {

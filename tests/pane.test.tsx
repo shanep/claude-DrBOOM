@@ -28,6 +28,8 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
               peers: [{ topic: 'Fix the b file', where: 'on branch master', files: ['b.txt'] }],
               paused: [{ file: 'b.txt', at: 0 }],
               upstream: ['a.txt'],
+              ports: 40100,
+              setup: 'Copied node_modules from the main checkout.',
             },
             version: 1,
           },
@@ -42,6 +44,8 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /^Rebase/ }))?.text).toBe('Rebase: master changed a.txt')
     expect((await ui.find({ type: 'Text', text: /Fix the b file/ }))?.text).toBe('"Fix the b file" on branch master: b.txt')
     expect((await ui.find({ type: 'Text', text: /^Paused/ }))?.text).toBe('Paused an edit to b.txt 2m ago')
+    expect((await ui.find({ type: 'Text', text: /^Ports/ }))?.text).toBe('Ports 40100 to 40199')
+    expect((await ui.find({ type: 'Text', text: /^Copied/ }))?.text).toBe('Copied node_modules from the main checkout.')
     await ui.unmount()
   }
 })
