@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Register } from 'claude-code'
 
-import type { Stats } from '../types'
+import type { Sounds, Stats } from '../types'
 
 // How Claude talks to Dr. BOOM, added to the end of the system prompt.
 const NAMES = `# Names
@@ -13,13 +13,29 @@ const NAMES = `# Names
 // none of these.
 const CHANGED = /^(Switched to .+|Sounds muted|Sounds on)\.$/
 
-// The band above the prompt reads these. They live in $.state so a reload
-// keeps the counts.
-const stats = atom({ plugin: 'drboom', key: 'stats' } as const, null)
+// The band above the prompt and the pane read these. They live in $.state so
+// a reload keeps the counts. Change the tag when Stats changes, so a reload
+// starts the counts over instead of reading an older shape.
+const stats = atom({ plugin: 'drboom', key: 'stats' } as const, null, { shape: 'stats-2' })
+const sounds = atom({ plugin: 'drboom', key: 'sounds' } as const, null)
 const isBandHidden = atom({ plugin: 'drboom', key: 'isBandHidden' } as const, false)
 
 // The tools the band counts as edits.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
+
+// The pane /boom opens.
+const PANE = 'boom'
+
+// The events the pane can play, with the label each button shows.
+const EVENTS: readonly [string, string][] = [
+  ['SessionStart', 'Start'],
+  ['UserPromptSubmit', 'Prompt'],
+  ['Notification', 'Notify'],
+  ['PermissionRequest', 'Permission'],
+  ['SubagentStop', 'Subagent'],
+  ['Stop', 'Stop'],
+  ['SessionEnd', 'End'],
+]
 
 // What the spinner says while Claude works, in place of the engine's verbs.
 const SPINNER_WORDS = [
@@ -42,7 +58,7 @@ function spinnerWord(word: string): string {
 }
 
 function bump(s: Stats | null, now: number, change: Partial<Stats>): Stats {
-  const base: Stats = s ?? { startedAt: now, prompts: 0, tools: 0, edits: 0, lastTurnSeconds: null }
+  const base: Stats = s ?? { startedAt: now, prompts: 0, tools: 0, edits: 0, lastTurnSeconds: null, byTool: {} }
   return { ...base, ...change }
 }
 
@@ -51,14 +67,45 @@ function age(ms: number): string {
   return minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`
 }
 
+// What profile.sh prints for args, an empty list asking for the listing.
+// lib.sh finds the data folder from the plugin root, as it does for the
+// status line.
+async function profile($: EngineInterface, args: string[]): Promise<string> {
+  const ran = await $.process.run(['sh', `${$.plugin.root}/scripts/profile.sh`, ...args])
+  return ran.stdout
+}
+
+// profile.sh marks the active profile with a star and ends with a line when
+// sounds are muted.
+function parseProfiles(out: string): Sounds {
+  const profiles: string[] = []
+  let active = 'default'
+  for (const line of out.split('\n')) {
+    const m = /^([* ]) ([^:]+):/.exec(line)
+    if (m === null) continue
+    const name = m[2] ?? ''
+    profiles.push(name)
+    if (m[1] === '*') active = name
+  }
+  return { profiles, active, isMuted: out.includes('Sounds are muted.') }
+}
+
 export const register: Register = on => {
   let turnStartedAt = 0
 
   on('session.start', async ($, e, next) => {
     const now = await $.clock.now()
     await update($, stats, s => s ?? bump(null, now, {}))
+    await $.command.register({ name: 'boom', description: 'Open the Dr. BOOM pane' })
+    const out = await profile($, [])
+    await update($, sounds, () => parseProfiles(out))
     return next(e)
   }).catch(($, e, next) => next(e))
+
+  on('command.run', { command: 'boom' }, async $ => {
+    const opened = await $.ui.open({ id: PANE, title: 'BOOM!' })
+    return { text: opened.isPlaced ? 'BOOM! Pane open.' : 'BOOM! The pane opens once the terminal is wide enough.' }
+  })
 
   on('prompt.submit', async ($, e, next) => {
     const now = await $.clock.now()
@@ -70,7 +117,13 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const now = await $.clock.now()
     const edit = EDIT_TOOLS.has(e.tool) ? 1 : 0
-    await update($, stats, s => bump(s, now, { tools: (s?.tools ?? 0) + 1, edits: (s?.edits ?? 0) + edit }))
+    await update($, stats, s =>
+      bump(s, now, {
+        tools: (s?.tools ?? 0) + 1,
+        edits: (s?.edits ?? 0) + edit,
+        byTool: { ...(s?.byTool ?? {}), [e.tool]: (s?.byTool[e.tool] ?? 0) + 1 },
+      }),
+    )
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -101,6 +154,80 @@ export const register: Register = on => {
       </Box>
     )
   }).catch(($, e, next) => next(e))
+
+  // The pane: session stats, the most-called tools, and a sound board that
+  // switches profiles, mutes and plays each event's sound.
+  on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
+    const { Box, Button, Text } = $.ui.resolve(e)
+    const s = await read($, stats)
+    const board = await read($, sounds)
+    const now = await $.clock.now()
+
+    // Run profile.sh, read its new listing back, and toast what it said.
+    const change = async (args: string[]) => {
+      const said = (await profile($, args)).split('\n')[0]?.trim() ?? ''
+      const out = await profile($, [])
+      await update($, sounds, () => parseProfiles(out))
+      if (said !== '') $.ui.toast(`BOOM! ${said}`)
+    }
+    const play = async (event: string) => {
+      await $.process.run(['sh', `${$.plugin.root}/scripts/play.sh`, event])
+    }
+
+    const top = Object.entries(s?.byTool ?? {})
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6)
+
+    return (
+      <Box flexDirection="column">
+        <Text bold>Session</Text>
+        {s === null ? (
+          <Text dimColor>Nothing yet.</Text>
+        ) : (
+          <Box flexDirection="column">
+            <Text>
+              {s.prompts} prompts | {s.tools} tool calls | {s.edits} edits
+            </Text>
+            <Text dimColor>
+              up {age(now - s.startedAt)}
+              {s.lastTurnSeconds === null ? '' : ` | last turn: ${s.lastTurnSeconds}s`}
+            </Text>
+          </Box>
+        )}
+        <Text> </Text>
+        <Text bold>Top tools</Text>
+        {top.length === 0 && <Text dimColor>No tool calls yet.</Text>}
+        {top.map(([tool, n]) => (
+          <Text>
+            {String(n).padStart(4)} {tool}
+          </Text>
+        ))}
+        <Text> </Text>
+        <Text bold>Sounds{board?.isMuted === true ? ' (muted)' : ''}</Text>
+        <Box flexWrap="wrap">
+          {(board?.profiles ?? []).map(name => (
+            <Button
+              key={`profile:${name}`}
+              label={name === board?.active ? `* ${name}` : name}
+              onPress={() => void change([name])}
+            />
+          ))}
+          <Button
+            key="mute"
+            hotkey="m"
+            label={board?.isMuted === true ? 'Unmute' : 'Mute'}
+            onPress={() => void change([board?.isMuted === true ? 'unmute' : 'mute'])}
+          />
+        </Box>
+        <Text dimColor>Play:</Text>
+        <Box flexWrap="wrap">
+          {EVENTS.map(([event, label], i) => (
+            <Button key={`play:${event}`} hotkey={String(i + 1)} label={label} onPress={() => void play(event)} />
+          ))}
+        </Box>
+      </Box>
+    )
+  })
 
   on('ui.render', { component: 'Spinner' }, ($, e, next) =>
     next({ ...e, props: { ...e.props, word: spinnerWord(e.props.word) } }),

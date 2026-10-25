@@ -2,7 +2,8 @@
 
 Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you,
 prints a status line, shows session stats above the prompt, puts Dr. BOOM
-words on the spinner, and plays your own sound files on hook events.
+words on the spinner, opens a pane with stats and a sound board, and plays
+your own sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
@@ -27,6 +28,17 @@ BOOM! 3 prompts | 41 tool calls | 6 edits | up 12m | last turn: 37s  [Hide]
 
 Edits are Edit, Write and NotebookEdit calls. Hide drops the row for the rest
 of the session.
+
+## Pane
+
+`/boom` opens a pane beside the chat with the same counts as the band, the six
+tools Claude called most, and a sound board. The board has a button for each
+profile (the active one has a `*`), Mute or Unmute, and a button that plays each
+event's sound. With the pane focused, `m` mutes or unmutes and `1` to `7` play
+Start, Prompt, Notify, Permission, Subagent, Stop and End.
+
+The pane docks beside the transcript in fullscreen from 110 columns and sits
+above the prompt otherwise.
 
 ## Spinner
 
