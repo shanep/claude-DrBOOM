@@ -26,6 +26,13 @@ const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
 // The pane /boom opens.
 const PANE = 'boom'
 
+// What the workflow plugin knows about the repo: the other sessions, paused
+// edits and what to rebase on. The pane redraws when it changes.
+const repo = { plugin: 'workflow', key: 'repo' } as const
+
+// How many files a pane row lists before "and n more".
+const PANE_FILES = 5
+
 // The events the pane can play, with the label each button shows.
 const EVENTS: readonly [string, string][] = [
   ['SessionStart', 'Start'],
@@ -65,6 +72,12 @@ function bump(s: Stats | null, now: number, change: Partial<Stats>): Stats {
 function age(ms: number): string {
   const minutes = Math.floor(ms / 60000)
   return minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${minutes % 60}m`
+}
+
+// Files as "a, b and 3 more".
+function files(list: readonly string[]): string {
+  const rest = list.length - PANE_FILES
+  return list.slice(0, PANE_FILES).join(', ') + (rest > 0 ? ` and ${rest} more` : '')
 }
 
 // What profile.sh prints for args, an empty list asking for the listing.
@@ -170,12 +183,14 @@ export const register: Register = on => {
     )
   }).catch(($, e, next) => next(e))
 
-  // The pane: session stats, the most-called tools, and a sound board that
-  // switches profiles, mutes and plays each event's sound.
+  // The pane: session stats, the most-called tools, the repo as the workflow
+  // plugin sees it, and a sound board that switches profiles, mutes and plays
+  // each event's sound.
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
     const { Box, Button, Text } = $.ui.resolve(e)
     const s = await read($, stats)
     const board = await read($, sounds)
+    const { value: r } = await $.state.get(repo)
     const now = await $.clock.now()
 
     // Run profile.sh, read its new listing back, and toast what it said.
@@ -216,6 +231,32 @@ export const register: Register = on => {
             {String(n).padStart(4)} {tool}
           </Text>
         ))}
+        <Text> </Text>
+        <Text bold>Repo</Text>
+        {r == null ? (
+          <Text dimColor>Nothing yet.</Text>
+        ) : (
+          <Box flexDirection="column">
+            <Text>
+              {r.branch ?? 'no branch'}
+              {r.target === null || r.target === r.branch ? '' : ` | lands on ${r.target}`}
+            </Text>
+            <Text dimColor>{r.files.length === 0 ? 'No changes yet.' : `Changing ${files(r.files)}`}</Text>
+            {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
+            {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
+            {r.peers.map(peer => (
+              <Text>
+                {peer.topic === null ? 'A session' : `"${peer.topic}"`} {peer.where}
+                {peer.files.length === 0 ? '' : `: ${files(peer.files)}`}
+              </Text>
+            ))}
+            {r.paused.map(p => (
+              <Text dimColor>
+                Paused an edit to {p.file} {age(now - p.at)} ago
+              </Text>
+            ))}
+          </Box>
+        )}
         <Text> </Text>
         <Text bold>Sounds{board?.isMuted === true ? ' (muted)' : ''}</Text>
         <Box flexWrap="wrap">

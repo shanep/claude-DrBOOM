@@ -99,5 +99,10 @@ cp "$here"/*.sh "$tmp/plugins/cache/shanep/drboom/1.0.0/scripts/"
 echo boom >"$tmp/plugins/data/drboom-shanep/profile"
 expect "installed copy finds its data" "$(echo '{}' | env -u CLAUDE_PLUGIN_ROOT -u CLAUDE_PLUGIN_DATA sh "$tmp/plugins/cache/shanep/drboom/1.0.0/scripts/statusline.sh" | sed 's/.*| //')" "sounds: boom"
 
+# The pane tests need Claude Code, which CI does not have.
+if command -v claude >/dev/null 2>&1; then
+    claude plugin test "$repo" || fail=1
+fi
+
 [ "$fail" -eq 0 ] && echo "All checks passed."
 exit "$fail"
