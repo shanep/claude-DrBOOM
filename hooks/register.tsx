@@ -69,10 +69,10 @@ function age(ms: number): string {
 
 // What profile.sh prints for args, an empty list asking for the listing.
 // lib.sh finds the data folder from the plugin root, as it does for the
-// status line.
+// status line. A failed run prints only to stderr, so that comes back then.
 async function profile($: EngineInterface, args: string[]): Promise<string> {
   const ran = await $.process.run(['sh', `${$.plugin.root}/scripts/profile.sh`, ...args])
-  return ran.stdout
+  return ran.stdout !== '' ? ran.stdout : ran.stderr
 }
 
 // profile.sh marks the active profile with a star and ends with a line when
@@ -90,6 +90,12 @@ function parseProfiles(out: string): Sounds {
   return { profiles, active, isMuted: out.includes('Sounds are muted.') }
 }
 
+// Read the listing back into $.state, which redraws the pane.
+async function refreshSounds($: EngineInterface): Promise<void> {
+  const out = await profile($, [])
+  await update($, sounds, () => parseProfiles(out))
+}
+
 export const register: Register = on => {
   let turnStartedAt = 0
 
@@ -97,12 +103,14 @@ export const register: Register = on => {
     const now = await $.clock.now()
     await update($, stats, s => s ?? bump(null, now, {}))
     await $.command.register({ name: 'boom', description: 'Open the Dr. BOOM pane' })
-    const out = await profile($, [])
-    await update($, sounds, () => parseProfiles(out))
+    await refreshSounds($)
     return next(e)
   }).catch(($, e, next) => next(e))
 
+  // Read the sounds again on open, since a shell can switch profiles
+  // without the pane hearing about it.
   on('command.run', { command: 'boom' }, async $ => {
+    await refreshSounds($)
     const opened = await $.ui.open({ id: PANE, title: 'BOOM!' })
     return { text: opened.isPlaced ? 'BOOM! Pane open.' : 'BOOM! The pane opens once the terminal is wide enough.' }
   })
@@ -166,9 +174,8 @@ export const register: Register = on => {
     // Run profile.sh, read its new listing back, and toast what it said.
     const change = async (args: string[]) => {
       const said = (await profile($, args)).split('\n')[0]?.trim() ?? ''
-      const out = await profile($, [])
-      await update($, sounds, () => parseProfiles(out))
-      if (said !== '') $.ui.toast(`BOOM! ${said}`)
+      await refreshSounds($)
+      $.ui.toast(`BOOM! ${said !== '' ? said : 'profile.sh printed nothing.'}`)
     }
     const play = async (event: string) => {
       await $.process.run(['sh', `${$.plugin.root}/scripts/play.sh`, event])
@@ -241,13 +248,16 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   // Toast the first line profile.sh prints when it switches, mutes or
-  // unmutes, so a change made through the profile skill is easy to see.
+  // unmutes, so a change made through the profile skill is easy to see, and
+  // update the pane to match.
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const ran = await next(e)
     if (!e.command.includes('scripts/profile.sh')) return ran
     if (ran.deny !== undefined || ran.isError === true) return ran
     const first = ran.result.stdout.split('\n')[0]?.trim() ?? ''
-    if (CHANGED.test(first)) $.ui.toast(`BOOM! ${first}`)
+    if (!CHANGED.test(first)) return ran
+    $.ui.toast(`BOOM! ${first}`)
+    await refreshSounds($)
     return ran
   }).catch(($, e, next) => next(e))
 }
