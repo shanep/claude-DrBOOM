@@ -90,10 +90,17 @@ function parseProfiles(out: string): Sounds {
   return { profiles, active, isMuted: out.includes('Sounds are muted.') }
 }
 
-// Read the listing back into $.state, which redraws the pane.
+// Read the listing back into $.state, which redraws the pane. It never
+// throws, since the Bash hook calls it after the tool has run and its .catch
+// would run the tool again. A failed listing keeps the last good one.
 async function refreshSounds($: EngineInterface): Promise<void> {
-  const out = await profile($, [])
-  await update($, sounds, () => parseProfiles(out))
+  try {
+    const ran = await $.process.run(['sh', `${$.plugin.root}/scripts/profile.sh`])
+    if (ran.exitCode !== 0 || ran.stdout === '') return
+    await update($, sounds, () => parseProfiles(ran.stdout))
+  } catch {
+    return
+  }
 }
 
 export const register: Register = on => {
