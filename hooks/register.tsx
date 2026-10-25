@@ -21,6 +21,26 @@ const isBandHidden = atom({ plugin: 'drboom', key: 'isBandHidden' } as const, fa
 // The tools the band counts as edits.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
 
+// What the spinner says while Claude works, in place of the engine's verbs.
+const SPINNER_WORDS = [
+  'BOOMing',
+  'Lighting the fuse',
+  'Calling in Sergeant Stupid',
+  'Detonating',
+  'Packing the charges',
+  'Counting down',
+  'Making it go BOOM',
+  'Consulting Dr. BOOM',
+]
+
+// The engine samples one word per turn, so hash it to keep ours steady for
+// the turn too.
+function spinnerWord(word: string): string {
+  let n = 0
+  for (const c of word) n = (n * 31 + c.charCodeAt(0)) >>> 0
+  return SPINNER_WORDS[n % SPINNER_WORDS.length] ?? 'BOOMing'
+}
+
 function bump(s: Stats | null, now: number, change: Partial<Stats>): Stats {
   const base: Stats = s ?? { startedAt: now, prompts: 0, tools: 0, edits: 0, lastTurnSeconds: null }
   return { ...base, ...change }
@@ -81,6 +101,10 @@ export const register: Register = on => {
       </Box>
     )
   }).catch(($, e, next) => next(e))
+
+  on('ui.render', { component: 'Spinner' }, ($, e, next) =>
+    next({ ...e, props: { ...e.props, word: spinnerWord(e.props.word) } }),
+  ).catch(($, e, next) => next(e))
 
   on('prompt.compose', async ($, e, next) => {
     const { sections } = await next(e)

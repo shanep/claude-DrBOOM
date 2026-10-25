@@ -1,8 +1,8 @@
 # Dr. BOOM
 
 Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you,
-prints a status line, shows session stats above the prompt, and plays your own
-sound files on hook events.
+prints a status line, shows session stats above the prompt, puts Dr. BOOM
+words on the spinner, and plays your own sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
@@ -27,6 +27,14 @@ BOOM! 3 prompts | 41 tool calls | 6 edits | up 12m | last turn: 37s  [Hide]
 
 Edits are Edit, Write and NotebookEdit calls. Hide drops the row for the rest
 of the session.
+
+## Spinner
+
+While Claude works, the spinner says one of `BOOMing`, `Lighting the fuse`,
+`Calling in Sergeant Stupid`, `Detonating`, `Packing the charges`,
+`Counting down`, `Making it go BOOM` or `Consulting Dr. BOOM`, and keeps the
+same one for the whole turn. Status messages Claude Code shows in its place
+are left alone.
 
 ## Status line
 
