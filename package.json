@@ -1,5 +1,5 @@
 {
-  "name": "drboom-sounds",
+  "name": "drboom",
   "private": true,
   "description": "Claude Code plugin that plays your own sounds on hook events",
   "scripts": {

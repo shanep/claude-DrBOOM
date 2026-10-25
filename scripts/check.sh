@@ -91,10 +91,10 @@ expect "status line counts sessions" "$(printf '{"workspace":{"current_dir":"%s"
 kill "$alive"
 wait "$alive" 2>/dev/null || true
 
-mkdir -p "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts" "$tmp/plugins/data/drboom-sounds-shanep"
-cp "$here"/*.sh "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts/"
-echo boom >"$tmp/plugins/data/drboom-sounds-shanep/profile"
-expect "installed copy finds its data" "$(echo '{}' | env -u CLAUDE_PLUGIN_ROOT -u CLAUDE_PLUGIN_DATA sh "$tmp/plugins/cache/shanep/drboom-sounds/1.0.0/scripts/statusline.sh" | sed 's/.*| //')" "sounds: boom"
+mkdir -p "$tmp/plugins/cache/shanep/drboom/1.0.0/scripts" "$tmp/plugins/data/drboom-shanep"
+cp "$here"/*.sh "$tmp/plugins/cache/shanep/drboom/1.0.0/scripts/"
+echo boom >"$tmp/plugins/data/drboom-shanep/profile"
+expect "installed copy finds its data" "$(echo '{}' | env -u CLAUDE_PLUGIN_ROOT -u CLAUDE_PLUGIN_DATA sh "$tmp/plugins/cache/shanep/drboom/1.0.0/scripts/statusline.sh" | sed 's/.*| //')" "sounds: boom"
 
 [ "$fail" -eq 0 ] && echo "All checks passed."
 exit "$fail"

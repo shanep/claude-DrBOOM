@@ -42,7 +42,7 @@ the version is part of it:
 ```json
 "statusLine": {
   "type": "command",
-  "command": "sh \"$(jq -r '.plugins[\"drboom-sounds@shanep\"][0].installPath' ~/.claude/plugins/installed_plugins.json)/scripts/statusline.sh\"",
+  "command": "sh \"$(jq -r '.plugins[\"drboom@shanep\"][0].installPath' ~/.claude/plugins/installed_plugins.json)/scripts/statusline.sh\"",
   "padding": 0
 }
 ```
@@ -51,7 +51,7 @@ the version is part of it:
 
 ```
 /plugin marketplace add shanep/claude-plugins
-/plugin install drboom-sounds@shanep
+/plugin install drboom@shanep
 ```
 
 To try a local checkout without installing it:
@@ -91,10 +91,10 @@ If the active profile is missing a file, the plugin plays the one from
 ### Switching profiles
 
 ```
-/drboom-sounds:profile          list profiles, * marks the active one
-/drboom-sounds:profile boom     switch to sounds/boom/ and play its Stop sound
-/drboom-sounds:profile mute     silence everything
-/drboom-sounds:profile unmute   turn sounds back on
+/drboom:profile          list profiles, * marks the active one
+/drboom:profile boom     switch to sounds/boom/ and play its Stop sound
+/drboom:profile mute     silence everything
+/drboom:profile unmute   turn sounds back on
 ```
 
 Your choice is saved in the plugin data directory, so it survives plugin

@@ -9,6 +9,6 @@ export type Stats = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'drboom-sounds': { stats: Stats | null; isBandHidden: boolean }
+    'drboom': { stats: Stats | null; isBandHidden: boolean }
   }
 }

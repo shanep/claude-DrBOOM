@@ -17,7 +17,7 @@ default_data() {
     if [ "${cache_dir##*/}" = cache ]; then
         printf '%s/data/%s-%s\n' "${cache_dir%/*}" "$name" "${market_dir##*/}"
     else
-        printf '%s\n' "$HOME/.claude/plugins/data/drboom-sounds"
+        printf '%s\n' "$HOME/.claude/plugins/data/drboom"
     fi
 }
 data=${CLAUDE_PLUGIN_DATA:-$(default_data)}

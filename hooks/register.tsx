@@ -15,8 +15,8 @@ const CHANGED = /^(Switched to .+|Sounds muted|Sounds on)\.$/
 
 // The band above the prompt reads these. They live in $.state so a reload
 // keeps the counts.
-const stats = atom({ plugin: 'drboom-sounds', key: 'stats' } as const, null)
-const isBandHidden = atom({ plugin: 'drboom-sounds', key: 'isBandHidden' } as const, false)
+const stats = atom({ plugin: 'drboom', key: 'stats' } as const, null)
+const isBandHidden = atom({ plugin: 'drboom', key: 'isBandHidden' } as const, false)
 
 // The tools the band counts as edits.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
