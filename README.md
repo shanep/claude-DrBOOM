@@ -16,6 +16,17 @@ The fullscreen TUI is not set here. Claude Code drops what a plugin's
 `settings.read` hook answers, and it picks the renderer at startup anyway, so
 put `"tui": "fullscreen"` in `~/.claude/settings.json` instead.
 
+## Stats band
+
+A row above the prompt counts what the session has done so far:
+
+```
+BOOM! 3 prompts | 41 tool calls | 6 edits | up 12m | last turn: 37s  [Hide]
+```
+
+Edits are Edit, Write and NotebookEdit calls. Hide drops the row for the rest
+of the session.
+
 ## Status line
 
 `scripts/statusline.sh` prints
