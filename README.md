@@ -1,7 +1,8 @@
 # Dr. BOOM
 
 Dr. BOOM's Claude Code setup as one plugin. It tells Claude what to call you,
-prints a status line, and plays your own sound files on hook events.
+prints a status line, shows session stats above the prompt, and plays your own
+sound files on hook events.
 
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
@@ -116,3 +117,7 @@ same command on every push, and so does a pre-push hook once you turn it on:
 ```
 git config core.hooksPath .githooks
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).

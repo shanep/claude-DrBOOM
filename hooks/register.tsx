@@ -38,28 +38,28 @@ export const register: Register = on => {
     const now = await $.clock.now()
     await update($, stats, s => s ?? bump(null, now, {}))
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
   on('prompt.submit', async ($, e, next) => {
     const now = await $.clock.now()
     turnStartedAt = now
     await update($, stats, s => bump(s, now, { prompts: (s?.prompts ?? 0) + 1 }))
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {
     const now = await $.clock.now()
     const edit = EDIT_TOOLS.has(e.tool) ? 1 : 0
     await update($, stats, s => bump(s, now, { tools: (s?.tools ?? 0) + 1, edits: (s?.edits ?? 0) + edit }))
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     const now = await $.clock.now()
     const seconds = turnStartedAt === 0 ? null : Math.round((now - turnStartedAt) / 1000)
     await update($, stats, s => bump(s, now, { lastTurnSeconds: seconds }))
     return next(e)
-  })
+  }).catch(($, e, next) => next(e))
 
   // Session stats in one row above the prompt, with a button to hide it for
   // the rest of the session.
@@ -80,14 +80,14 @@ export const register: Register = on => {
         <Button key="hide" label="Hide" onPress={() => update($, isBandHidden, () => true)} />
       </Box>
     )
-  })
+  }).catch(($, e, next) => next(e))
 
   on('prompt.compose', async ($, e, next) => {
     const { sections } = await next(e)
     return {
       sections: [...sections, { id: `${$.plugin.name}:names`, text: NAMES, scope: 'session' }],
     }
-  })
+  }).catch(($, e, next) => next(e))
 
   // Toast the first line profile.sh prints when it switches, mutes or
   // unmutes, so a change made through the profile skill is easy to see.

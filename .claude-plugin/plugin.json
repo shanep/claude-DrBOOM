@@ -1,13 +1,14 @@
 {
   "name": "drboom",
   "displayName": "Dr. BOOM",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "types": "./types/index.d.ts",
   "description": "Dr. BOOM's Claude Code setup: names, a status line, a stats band and switchable sound profiles",
   "author": {
     "name": "Shane Panter",
     "email": "shanepanter@boisestate.edu"
   },
+  "license": "MIT",
   "repository": "https://github.com/shanep/claude-DrBOOM",
   "keywords": [
     "sounds",
