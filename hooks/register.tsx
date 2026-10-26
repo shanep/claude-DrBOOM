@@ -248,6 +248,11 @@ export const register: Register = on => {
               </Text>
             )}
             {r.setup != null && <Text dimColor>{r.setup}</Text>}
+            {r.checks != null && (
+              <Text dimColor={r.checks.busy < r.checks.slots} color={r.checks.busy < r.checks.slots ? undefined : 'yellow'}>
+                Checks: {r.checks.busy} of {r.checks.slots} slots busy
+              </Text>
+            )}
             {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
             {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
             {r.peers.map(peer => (

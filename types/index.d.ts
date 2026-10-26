@@ -25,6 +25,8 @@ export type Repo = {
   // Optional, since workflow 0.1.0 published neither.
   ports?: number | null
   setup?: string | null
+  // Optional, since workflow 0.2.0 and before did not publish it.
+  checks?: { busy: number; slots: number } | null
 }
 
 declare module 'claude-code' {
