@@ -32,6 +32,18 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
               setup: 'Copied node_modules from the main checkout.',
               checks: { busy: 1, slots: 3 },
               health: { at: 0, problems: ['Local master has 1 commit(s) that are not on origin. Land them.'] },
+              plans: [
+                {
+                  id: 'mh2k1',
+                  goal: 'Add dark mode',
+                  state: 'running',
+                  tasks: [
+                    { id: 'theme', title: 'Theme', state: 'landed', note: 'abc1234', session: 'plan-mh2k1-theme' },
+                    { id: 'toggle', title: 'Toggle', state: 'failed', note: 'Tests fail.', session: 'plan-mh2k1-toggle' },
+                    { id: 'docs', title: 'Docs', state: 'waiting', note: null, session: null },
+                  ],
+                },
+              ],
             },
             version: 1,
           },
@@ -51,6 +63,9 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /^Checks/ }))?.text).toBe('Checks: 1 of 3 slots busy')
     expect((await ui.find({ type: 'Text', text: /^Health/ }))?.text).toBe('Health: 1 problem at head')
     expect((await ui.find({ type: 'Text', text: /^- Local/ }))?.text).toBe('- Local master has 1 commit(s) that are not on origin. Land them.')
+    expect((await ui.find({ type: 'Text', text: /^mh2k1/ }))?.text).toBe('mh2k1: Add dark mode | running, 1 of 3 landed')
+    expect((await ui.find({ type: 'Text', text: /toggle/ }))?.text).toBe('  toggle: failed (Tests fail.)')
+    expect((await ui.find({ type: 'Text', text: /docs/ }))?.text).toBe('  docs: waiting')
     await ui.unmount()
   }
 })

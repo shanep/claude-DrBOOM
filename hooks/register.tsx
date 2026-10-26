@@ -297,6 +297,26 @@ export const register: Register = on => {
             ))}
           </Box>
         )}
+        {r?.plans != null && r.plans.length > 0 && (
+          <Box flexDirection="column">
+            <Text> </Text>
+            <Text bold>Plans</Text>
+            {r.plans.map(plan => (
+              <Box flexDirection="column">
+                <Text color={plan.state === 'failed' ? 'red' : undefined}>
+                  {plan.id}: {plan.goal} | {plan.state}, {plan.tasks.filter(task => task.state === 'landed').length} of {plan.tasks.length} landed
+                </Text>
+                {plan.tasks.map(task => (
+                  <Text dimColor={task.state !== 'failed'} color={task.state === 'failed' ? 'red' : undefined}>
+                    {'  '}
+                    {task.id}: {task.state}
+                    {task.note === null ? '' : ` (${task.note.split('\n')[0]})`}
+                  </Text>
+                ))}
+              </Box>
+            ))}
+          </Box>
+        )}
         <Text> </Text>
         <Text bold>Sounds{board?.isMuted === true ? ' (muted)' : ''}</Text>
         <Box flexWrap="wrap">

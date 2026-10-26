@@ -29,6 +29,19 @@ export type Repo = {
   checks?: { busy: number; slots: number } | null
   // Optional, since workflow 0.3.0 and before did not publish it.
   health?: { at: number; problems: string[] } | null
+  // Optional, since workflow 0.5.0 and before did not publish it. Newest first.
+  plans?: {
+    id: string
+    goal: string
+    state: 'running' | 'done' | 'failed' | 'stopped'
+    tasks: {
+      id: string
+      title: string
+      state: 'waiting' | 'running' | 'landed' | 'failed' | 'stopped'
+      note: string | null
+      session: string | null
+    }[]
+  }[]
 }
 
 declare module 'claude-code' {
