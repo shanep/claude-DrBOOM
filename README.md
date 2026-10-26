@@ -34,13 +34,13 @@ of the session.
 `/boom` opens a pane beside the chat with the same counts as the band, the six
 tools Claude called most, the repo, and a sound board. The repo section comes
 from the [workflow](https://github.com/shanep/claude-workflow) plugin: this
-session's branch and changed files, its ports, how the worktree setup went,
-how many check slots are busy, the other sessions in the repo and what they are changing, edits it paused, and
-files to rebase on. Without workflow it says
-"Nothing yet." The board has a button for each profile (the active one has a
-`*`), Mute or Unmute, and a button that plays each event's sound. With the pane
-focused, `m` mutes or unmutes and `1` to `7` play Start, Prompt, Notify,
-Permission, Subagent, Stop and End.
+session's branch and changed files, its ports, how the worktree setup went, how
+many check slots are busy, what the startup health check found, the other
+sessions in the repo and what they are changing, edits it paused, and files to
+rebase on. Without workflow it says "Nothing yet." The board has a button for
+each profile (the active one has a `*`), Mute or Unmute, and a button that
+plays each event's sound. With the pane focused, `m` mutes or unmutes and `1`
+to `7` play Start, Prompt, Notify, Permission, Subagent, Stop and End.
 
 The pane docks beside the transcript in fullscreen from 110 columns and sits
 above the prompt otherwise.

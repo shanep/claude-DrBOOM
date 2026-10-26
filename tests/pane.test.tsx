@@ -31,6 +31,7 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
               ports: 40100,
               setup: 'Copied node_modules from the main checkout.',
               checks: { busy: 1, slots: 3 },
+              health: { at: 0, problems: ['Local master has 1 commit(s) that are not on origin. Land them.'] },
             },
             version: 1,
           },
@@ -48,6 +49,8 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /^Ports/ }))?.text).toBe('Ports 40100 to 40199')
     expect((await ui.find({ type: 'Text', text: /^Copied/ }))?.text).toBe('Copied node_modules from the main checkout.')
     expect((await ui.find({ type: 'Text', text: /^Checks/ }))?.text).toBe('Checks: 1 of 3 slots busy')
+    expect((await ui.find({ type: 'Text', text: /^Health/ }))?.text).toBe('Health: 1 problem at head')
+    expect((await ui.find({ type: 'Text', text: /^- Local/ }))?.text).toBe('- Local master has 1 commit(s) that are not on origin. Land them.')
     await ui.unmount()
   }
 })

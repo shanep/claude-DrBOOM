@@ -248,6 +248,17 @@ export const register: Register = on => {
               </Text>
             )}
             {r.setup != null && <Text dimColor>{r.setup}</Text>}
+            {r.health != null && r.health.problems.length === 0 && (
+              <Text dimColor>Healthy at head, checked {age(now - r.health.at)} ago</Text>
+            )}
+            {r.health != null && r.health.problems.length > 0 && (
+              <Text color="yellow">
+                Health: {r.health.problems.length} problem{r.health.problems.length === 1 ? '' : 's'} at head
+              </Text>
+            )}
+            {r.health?.problems.map(problem => (
+              <Text dimColor>- {problem.split('\n')[0]}</Text>
+            ))}
             {r.checks != null && (
               <Text dimColor={r.checks.busy < r.checks.slots} color={r.checks.busy < r.checks.slots ? undefined : 'yellow'}>
                 Checks: {r.checks.busy} of {r.checks.slots} slots busy
