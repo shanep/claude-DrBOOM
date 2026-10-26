@@ -38,6 +38,14 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
               ports: 40100,
               setup: 'Copied node_modules from the main checkout.',
               isAwake: true,
+              audit: {
+                allowed: 4,
+                denied: 1,
+                recent: [
+                  { at: 60_000, tool: 'Bash', what: 'npm install', decision: 'allow', reason: null },
+                  { at: 60_000, tool: 'Bash', what: 'rm -rf build', decision: 'deny', reason: 'Destructive.' },
+                ],
+              },
               checks: { busy: 1, slots: 3 },
               health: { at: 0, problems: ['Local master has 1 commit(s) that are not on origin. Land them.'] },
               plans: [
@@ -77,6 +85,9 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /^Copied/ }))?.text).toBe('Copied node_modules from the main checkout.')
     expect((await ui.find({ type: 'Text', text: /^Checks/ }))?.text).toBe('Checks: 1 of 3 slots busy')
     expect((await ui.find({ type: 'Text', text: /awake/ }))?.text).toBe('Keeping this computer awake')
+    expect((await ui.find({ type: 'Text', text: /^Let/ }))?.text).toBe('Let 4 through | refused 1 | /audit lists them')
+    expect((await ui.find({ type: 'Text', text: /npm install/ }))?.text).toBe('1m ago let through Bash: npm install')
+    expect((await ui.find({ type: 'Text', text: /rm -rf/ }))?.text).toBe('1m ago refused Bash: rm -rf build')
     expect((await ui.find({ type: 'Text', text: /^Health/ }))?.text).toBe('Health: 1 problem at head')
     expect((await ui.find({ type: 'Text', text: /^- Local/ }))?.text).toBe('- Local master has 1 commit(s) that are not on origin. Land them.')
     expect((await ui.find({ type: 'Text', text: /^mh2k1/ }))?.text).toBe('mh2k1: Add dark mode | running, 1 of 3 landed')

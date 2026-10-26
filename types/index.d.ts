@@ -58,6 +58,12 @@ export type Repo = {
   progress?: Progress | null
   // Optional, since workflow 0.7.0 and before did not publish it.
   isAwake?: boolean
+  // Optional, since workflow 0.8.0 and before did not publish it. Newest last.
+  audit?: {
+    allowed: number
+    denied: number
+    recent: { at: number; tool: string; what: string; decision: 'allow' | 'deny'; reason: string | null }[]
+  } | null
 }
 
 declare module 'claude-code' {

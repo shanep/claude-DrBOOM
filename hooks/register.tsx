@@ -330,6 +330,20 @@ export const register: Register = on => {
             ))}
           </Box>
         )}
+        {r?.audit != null && (
+          <Box flexDirection="column">
+            <Text> </Text>
+            <Text bold>Auto mode</Text>
+            <Text dimColor>
+              Let {r.audit.allowed} through | refused {r.audit.denied} | /audit lists them
+            </Text>
+            {r.audit.recent.map(entry => (
+              <Text dimColor={entry.decision === 'allow'} color={entry.decision === 'deny' ? 'yellow' : undefined}>
+                {age(now - entry.at)} ago {entry.decision === 'allow' ? 'let through' : 'refused'} {entry.tool}: {entry.what}
+              </Text>
+            ))}
+          </Box>
+        )}
         {r?.plans != null && r.plans.length > 0 && (
           <Box flexDirection="column">
             <Text> </Text>

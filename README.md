@@ -43,7 +43,8 @@ cost against its budget, how far through its task list it is and a guess at
 what is left, and each other session gets the same line, yellow once it is
 over budget. Without workflow it says "Nothing yet." Below it, the newest
 workflow plans list each task, whether it is waiting, running, landed or
-failed, and what it cost. The board has a button for
+failed, and what it cost. An Auto mode section counts the calls auto mode let
+through and refused in this session and shows the newest three. The board has a button for
 each profile (the active one has a `*`), Mute or Unmute, and a button that
 plays each event's sound. With the pane focused, `m` mutes or unmutes and `1`
 to `7` play Start, Prompt, Notify, Permission, Subagent, Stop and End.
