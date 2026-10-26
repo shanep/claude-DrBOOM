@@ -290,6 +290,7 @@ export const register: Register = on => {
               </Text>
             )}
             {r.setup != null && <Text dimColor>{r.setup}</Text>}
+            {r.isAwake === true && <Text dimColor>Keeping this computer awake</Text>}
             {r.health != null && r.health.problems.length === 0 && (
               <Text dimColor>Healthy at head, checked {age(now - r.health.at)} ago</Text>
             )}

@@ -34,7 +34,8 @@ of the session.
 `/boom` opens a pane beside the chat with the same counts as the band, the six
 tools Claude called most, the repo, and a sound board. The repo section comes
 from the [workflow](https://github.com/shanep/claude-workflow) plugin: this
-session's branch and changed files, its ports, how the worktree setup went, how
+session's branch and changed files, its ports, how the worktree setup went,
+whether it keeps the computer awake, how
 many check slots are busy, what the startup health check found, the other
 sessions in the repo and what they are changing, edits it paused, and files to
 rebase on. With workflow the session counts also show what the session has

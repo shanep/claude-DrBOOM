@@ -56,6 +56,8 @@ export type Repo = {
   }[]
   // Optional, since workflow 0.6.0 and before did not publish it.
   progress?: Progress | null
+  // Optional, since workflow 0.7.0 and before did not publish it.
+  isAwake?: boolean
 }
 
 declare module 'claude-code' {
