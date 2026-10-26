@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, Timer } from 'claude-code'
 
-import type { Sounds, Stats } from '../types'
+import type { Progress, Sounds, Stats } from '../types'
 
 // How Claude talks to Dr. BOOM, added to the end of the system prompt.
 const NAMES = `# Names
@@ -91,6 +91,29 @@ function age(ms: number): string {
 function files(list: readonly string[]): string {
   const rest = list.length - PANE_FILES
   return list.slice(0, PANE_FILES).join(', ') + (rest > 0 ? ` and ${rest} more` : '')
+}
+
+function dollars(usd: number): string {
+  return `$${usd.toFixed(2)}`
+}
+
+// A session's progress as "$1.20 of $5.00 | 2 of 5 tasks, on Fix login | about 20m and $1.80 left".
+function progress(p: Progress): string {
+  const parts = [p.budget === null ? dollars(p.usd) : `${dollars(p.usd)} of ${dollars(p.budget)}`]
+  if (p.tasks !== null) {
+    parts.push(`${p.tasks.done} of ${p.tasks.total} tasks${p.tasks.current === null ? '' : `, on ${p.tasks.current}`}`)
+  }
+  if (p.left !== null) {
+    parts.push(`about ${age(Math.max(p.left.ms, 60000))} and ${dollars(p.left.usd)} left`)
+  }
+  if (p.fiveHour !== null) {
+    parts.push(`5h limit ${Math.round(p.fiveHour)}%`)
+  }
+  return parts.join(' | ')
+}
+
+function isOver(p: Progress): boolean {
+  return p.budget !== null && p.usd >= p.budget
 }
 
 // What profile.sh prints for args, an empty list asking for the listing.
@@ -241,6 +264,7 @@ export const register: Register = on => {
             </Text>
           </Box>
         )}
+        {r?.progress != null && <Text color={isOver(r.progress) ? 'yellow' : undefined}>{progress(r.progress)}</Text>}
         <Text> </Text>
         <Text bold>Top tools</Text>
         {top.length === 0 && <Text dimColor>No tool calls yet.</Text>}
@@ -285,10 +309,18 @@ export const register: Register = on => {
             {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
             {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
             {r.peers.map(peer => (
-              <Text>
-                {peer.topic === null ? 'A session' : `"${peer.topic}"`} {peer.where}
-                {peer.files.length === 0 ? '' : `: ${files(peer.files)}`}
-              </Text>
+              <Box flexDirection="column">
+                <Text>
+                  {peer.topic === null ? 'A session' : `"${peer.topic}"`} {peer.where}
+                  {peer.files.length === 0 ? '' : `: ${files(peer.files)}`}
+                </Text>
+                {peer.progress != null && (
+                  <Text dimColor={!isOver(peer.progress)} color={isOver(peer.progress) ? 'yellow' : undefined}>
+                    {'  '}
+                    {progress(peer.progress)}
+                  </Text>
+                )}
+              </Box>
             ))}
             {r.paused.map(p => (
               <Text dimColor>
@@ -310,6 +342,7 @@ export const register: Register = on => {
                   <Text dimColor={task.state !== 'failed'} color={task.state === 'failed' ? 'red' : undefined}>
                     {'  '}
                     {task.id}: {task.state}
+                    {task.usd == null ? '' : `, ${dollars(task.usd)}`}
                     {task.note === null ? '' : ` (${task.note.split('\n')[0]})`}
                   </Text>
                 ))}

@@ -11,6 +11,15 @@ export type Stats = {
 // What profile.sh lists: the profiles, the active one and the mute state.
 export type Sounds = { profiles: string[]; active: string; isMuted: boolean }
 
+// How far a session has got and what it cost, from the workflow plugin.
+export type Progress = {
+  usd: number
+  budget: number | null
+  tasks: { done: number; total: number; current: string | null } | null
+  left: { usd: number; ms: number } | null
+  fiveHour: number | null
+}
+
 // What the workflow plugin keeps in $.state for the pane, copied from its
 // types/index.d.ts. drboom reads it without listing workflow as a dependency,
 // since Claude Code turns off a plugin whose dependency is missing.
@@ -19,7 +28,8 @@ export type Repo = {
   target: string | null
   branch: string | null
   files: string[]
-  peers: { topic: string | null; where: string; files: string[] }[]
+  // progress is optional, since workflow 0.6.0 and before did not publish it.
+  peers: { topic: string | null; where: string; files: string[]; progress?: Progress | null }[]
   paused: { file: string; at: number }[]
   upstream: string[]
   // Optional, since workflow 0.1.0 published neither.
@@ -40,8 +50,12 @@ export type Repo = {
       state: 'waiting' | 'running' | 'landed' | 'failed' | 'stopped'
       note: string | null
       session: string | null
+      // Optional, since workflow 0.6.0 and before did not publish it.
+      usd?: number | null
     }[]
   }[]
+  // Optional, since workflow 0.6.0 and before did not publish it.
+  progress?: Progress | null
 }
 
 declare module 'claude-code' {

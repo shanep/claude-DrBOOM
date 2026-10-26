@@ -25,7 +25,14 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
               target: 'master',
               branch: 'feature',
               files: ['a.txt'],
-              peers: [{ topic: 'Fix the b file', where: 'on branch master', files: ['b.txt'] }],
+              peers: [
+                {
+                  topic: 'Fix the b file',
+                  where: 'on branch master',
+                  files: ['b.txt'],
+                  progress: { usd: 6, budget: 5, tasks: null, left: null, fiveHour: null },
+                },
+              ],
               paused: [{ file: 'b.txt', at: 0 }],
               upstream: ['a.txt'],
               ports: 40100,
@@ -38,12 +45,19 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
                   goal: 'Add dark mode',
                   state: 'running',
                   tasks: [
-                    { id: 'theme', title: 'Theme', state: 'landed', note: 'abc1234', session: 'plan-mh2k1-theme' },
+                    { id: 'theme', title: 'Theme', state: 'landed', note: 'abc1234', session: 'plan-mh2k1-theme', usd: 1.5 },
                     { id: 'toggle', title: 'Toggle', state: 'failed', note: 'Tests fail.', session: 'plan-mh2k1-toggle' },
                     { id: 'docs', title: 'Docs', state: 'waiting', note: null, session: null },
                   ],
                 },
               ],
+              progress: {
+                usd: 1.2,
+                budget: 5,
+                tasks: { done: 2, total: 5, current: 'Fix login' },
+                left: { usd: 1.8, ms: 1_200_000 },
+                fiveHour: 19.4,
+              },
             },
             version: 1,
           },
@@ -66,6 +80,11 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /^mh2k1/ }))?.text).toBe('mh2k1: Add dark mode | running, 1 of 3 landed')
     expect((await ui.find({ type: 'Text', text: /toggle/ }))?.text).toBe('  toggle: failed (Tests fail.)')
     expect((await ui.find({ type: 'Text', text: /docs/ }))?.text).toBe('  docs: waiting')
+    expect((await ui.find({ type: 'Text', text: /theme/ }))?.text).toBe('  theme: landed, $1.50 (abc1234)')
+    expect((await ui.find({ type: 'Text', text: /^\$1\.20/ }))?.text).toBe(
+      '$1.20 of $5.00 | 2 of 5 tasks, on Fix login | about 20m and $1.80 left | 5h limit 19%',
+    )
+    expect((await ui.find({ type: 'Text', text: /\$6\.00/ }))?.text).toBe('  $6.00 of $5.00')
     await ui.unmount()
   }
 })

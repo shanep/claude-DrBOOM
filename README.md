@@ -37,9 +37,12 @@ from the [workflow](https://github.com/shanep/claude-workflow) plugin: this
 session's branch and changed files, its ports, how the worktree setup went, how
 many check slots are busy, what the startup health check found, the other
 sessions in the repo and what they are changing, edits it paused, and files to
-rebase on. Without workflow it says "Nothing yet." Below it, the newest
-workflow plans list each task and whether it is waiting, running, landed or
-failed. The board has a button for
+rebase on. With workflow the session counts also show what the session has
+cost against its budget, how far through its task list it is and a guess at
+what is left, and each other session gets the same line, yellow once it is
+over budget. Without workflow it says "Nothing yet." Below it, the newest
+workflow plans list each task, whether it is waiting, running, landed or
+failed, and what it cost. The board has a button for
 each profile (the active one has a `*`), Mute or Unmute, and a button that
 plays each event's sound. With the pane focused, `m` mutes or unmutes and `1`
 to `7` play Start, Prompt, Notify, Permission, Subagent, Stop and End.
