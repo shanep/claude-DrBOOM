@@ -47,6 +47,7 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
                 ],
               },
               checks: { busy: 1, slots: 3 },
+              connectors: { at: 0, ready: 6, problems: ['claude.ai Gmail: Needs authentication'] },
               health: { at: 0, problems: ['Local master has 1 commit(s) that are not on origin. Land them.'] },
               plans: [
                 {
@@ -88,6 +89,8 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /^Let/ }))?.text).toBe('Let 4 through | refused 1 | /audit lists them')
     expect((await ui.find({ type: 'Text', text: /npm install/ }))?.text).toBe('1m ago let through Bash: npm install')
     expect((await ui.find({ type: 'Text', text: /rm -rf/ }))?.text).toBe('1m ago refused Bash: rm -rf build')
+    expect((await ui.find({ type: 'Text', text: /^Connectors/ }))?.text).toBe('Connectors: 6 connected, 1 not working')
+    expect((await ui.find({ type: 'Text', text: /Gmail/ }))?.text).toBe('- claude.ai Gmail: Needs authentication')
     expect((await ui.find({ type: 'Text', text: /^Health/ }))?.text).toBe('Health: 1 problem at head')
     expect((await ui.find({ type: 'Text', text: /^- Local/ }))?.text).toBe('- Local master has 1 commit(s) that are not on origin. Land them.')
     expect((await ui.find({ type: 'Text', text: /^mh2k1/ }))?.text).toBe('mh2k1: Add dark mode | running, 1 of 3 landed')

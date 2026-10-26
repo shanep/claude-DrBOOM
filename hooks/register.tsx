@@ -302,6 +302,15 @@ export const register: Register = on => {
             {r.health?.problems.map(problem => (
               <Text dimColor>- {problem.split('\n')[0]}</Text>
             ))}
+            {r.connectors != null && (
+              <Text dimColor={r.connectors.problems.length === 0} color={r.connectors.problems.length === 0 ? undefined : 'yellow'}>
+                Connectors: {r.connectors.ready} connected
+                {r.connectors.problems.length === 0 ? '' : `, ${r.connectors.problems.length} not working`}
+              </Text>
+            )}
+            {r.connectors?.problems.map(problem => (
+              <Text dimColor>- {problem}</Text>
+            ))}
             {r.checks != null && (
               <Text dimColor={r.checks.busy < r.checks.slots} color={r.checks.busy < r.checks.slots ? undefined : 'yellow'}>
                 Checks: {r.checks.busy} of {r.checks.slots} slots busy

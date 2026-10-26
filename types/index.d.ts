@@ -64,6 +64,9 @@ export type Repo = {
     denied: number
     recent: { at: number; tool: string; what: string; decision: 'allow' | 'deny'; reason: string | null }[]
   } | null
+  // Optional, since workflow 0.9.0 and before did not publish it. Each
+  // problem is "<name>: <status>".
+  connectors?: { at: number; ready: number; problems: string[] } | null
 }
 
 declare module 'claude-code' {

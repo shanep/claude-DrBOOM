@@ -35,8 +35,8 @@ of the session.
 tools Claude called most, the repo, and a sound board. The repo section comes
 from the [workflow](https://github.com/shanep/claude-workflow) plugin: this
 session's branch and changed files, its ports, how the worktree setup went,
-whether it keeps the computer awake, how
-many check slots are busy, what the startup health check found, the other
+whether it keeps the computer awake, which MCP servers and connectors work,
+how many check slots are busy, what the startup health check found, the other
 sessions in the repo and what they are changing, edits it paused, and files to
 rebase on. With workflow the session counts also show what the session has
 cost against its budget, how far through its task list it is and a guess at
