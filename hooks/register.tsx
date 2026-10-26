@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, Timer } from 'claude-code'
 
 import type { Sounds, Stats } from '../types'
 
@@ -56,12 +56,25 @@ const SPINNER_WORDS = [
   'Consulting Dr. BOOM',
 ]
 
+// What the line that closes a turn says, in place of the engine's word
+// (`Baked for 3s` becomes `Detonated for 3s`).
+const FOOTER_WORDS = [
+  'Detonated',
+  'Went BOOM',
+  'Blew it up',
+  'Lit the fuse',
+  'Cleared the blast zone',
+  'Kaboomed',
+  'Rattled the windows',
+  'Shook the lab',
+]
+
 // The engine samples one word per turn, so hash it to keep ours steady for
-// the turn too.
-function spinnerWord(word: string): string {
+// the turn and on every redraw of the line.
+function pick(words: readonly string[], word: string): string {
   let n = 0
   for (const c of word) n = (n * 31 + c.charCodeAt(0)) >>> 0
-  return SPINNER_WORDS[n % SPINNER_WORDS.length] ?? 'BOOMing'
+  return words[n % words.length] ?? 'BOOMing'
 }
 
 function bump(s: Stats | null, now: number, change: Partial<Stats>): Stats {
@@ -118,12 +131,17 @@ async function refreshSounds($: EngineInterface): Promise<void> {
 
 export const register: Register = on => {
   let turnStartedAt = 0
+  // Redraws the band and the pane each minute so the uptime stays current.
+  // session.start runs again after /clear, so a second start replaces it.
+  let tick: Timer | null = null
 
   on('session.start', async ($, e, next) => {
     const now = await $.clock.now()
     await update($, stats, s => s ?? bump(null, now, {}))
     await $.command.register({ name: 'boom', description: 'Open the Dr. BOOM pane' })
     await refreshSounds($)
+    tick?.cancel()
+    tick = $.clock.every(60000, () => $.ui.invalidate('ui.render'))
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -307,7 +325,11 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Spinner' }, ($, e, next) =>
-    next({ ...e, props: { ...e.props, word: spinnerWord(e.props.word) } }),
+    next({ ...e, props: { ...e.props, word: pick(SPINNER_WORDS, e.props.word) } }),
+  ).catch(($, e, next) => next(e))
+
+  on('ui.render', { component: 'TurnDuration' }, ($, e, next) =>
+    next({ ...e, props: { ...e.props, word: pick(FOOTER_WORDS, e.props.word) } }),
   ).catch(($, e, next) => next(e))
 
   on('prompt.compose', async ($, e, next) => {
