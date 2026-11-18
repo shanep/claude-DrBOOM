@@ -269,9 +269,11 @@ export const register: Register = on => {
         <Text bold>Top tools</Text>
         {top.length === 0 && <Text dimColor>No tool calls yet.</Text>}
         {top.map(([tool, n]) => (
-          <Text>
-            {String(n).padStart(4)} {tool}
-          </Text>
+          <Box key={`tool:${tool}`}>
+            <Text>
+              {String(n).padStart(4)} {tool}
+            </Text>
+          </Box>
         ))}
         <Text> </Text>
         <Text bold>Repo</Text>
@@ -299,8 +301,10 @@ export const register: Register = on => {
                 Health: {r.health.problems.length} problem{r.health.problems.length === 1 ? '' : 's'} at head
               </Text>
             )}
-            {r.health?.problems.map(problem => (
-              <Text dimColor>- {problem.split('\n')[0]}</Text>
+            {r.health?.problems.map((problem, i) => (
+              <Box key={`health:${i}`}>
+                <Text dimColor>- {problem.split('\n')[0]}</Text>
+              </Box>
             ))}
             {r.connectors != null && (
               <Text dimColor={r.connectors.problems.length === 0} color={r.connectors.problems.length === 0 ? undefined : 'yellow'}>
@@ -308,8 +312,10 @@ export const register: Register = on => {
                 {r.connectors.problems.length === 0 ? '' : `, ${r.connectors.problems.length} not working`}
               </Text>
             )}
-            {r.connectors?.problems.map(problem => (
-              <Text dimColor>- {problem}</Text>
+            {r.connectors?.problems.map((problem, i) => (
+              <Box key={`connector:${i}`}>
+                <Text dimColor>- {problem}</Text>
+              </Box>
             ))}
             {r.checks != null && (
               <Text dimColor={r.checks.busy < r.checks.slots} color={r.checks.busy < r.checks.slots ? undefined : 'yellow'}>
@@ -318,8 +324,8 @@ export const register: Register = on => {
             )}
             {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
             {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
-            {r.peers.map(peer => (
-              <Box flexDirection="column">
+            {r.peers.map((peer, i) => (
+              <Box key={`peer:${i}`} flexDirection="column">
                 <Text>
                   {peer.topic === null ? 'A session' : `"${peer.topic}"`} {peer.where}
                   {peer.files.length === 0 ? '' : `: ${files(peer.files)}`}
@@ -333,9 +339,11 @@ export const register: Register = on => {
               </Box>
             ))}
             {r.paused.map(p => (
-              <Text dimColor>
-                Paused an edit to {p.file} {age(now - p.at)} ago
-              </Text>
+              <Box key={`paused:${p.file}:${p.at}`}>
+                <Text dimColor>
+                  Paused an edit to {p.file} {age(now - p.at)} ago
+                </Text>
+              </Box>
             ))}
           </Box>
         )}
@@ -346,10 +354,12 @@ export const register: Register = on => {
             <Text dimColor>
               Let {r.audit.allowed} through | refused {r.audit.denied} | /audit lists them
             </Text>
-            {r.audit.recent.map(entry => (
-              <Text dimColor={entry.decision === 'allow'} color={entry.decision === 'deny' ? 'yellow' : undefined}>
-                {age(now - entry.at)} ago {entry.decision === 'allow' ? 'let through' : 'refused'} {entry.tool}: {entry.what}
-              </Text>
+            {r.audit.recent.map((entry, i) => (
+              <Box key={`audit:${i}`}>
+                <Text dimColor={entry.decision === 'allow'} color={entry.decision === 'deny' ? 'yellow' : undefined}>
+                  {age(now - entry.at)} ago {entry.decision === 'allow' ? 'let through' : 'refused'} {entry.tool}: {entry.what}
+                </Text>
+              </Box>
             ))}
           </Box>
         )}
@@ -358,17 +368,19 @@ export const register: Register = on => {
             <Text> </Text>
             <Text bold>Plans</Text>
             {r.plans.map(plan => (
-              <Box flexDirection="column">
+              <Box key={`plan:${plan.id}`} flexDirection="column">
                 <Text color={plan.state === 'failed' ? 'red' : undefined}>
                   {plan.id}: {plan.goal} | {plan.state}, {plan.tasks.filter(task => task.state === 'landed').length} of {plan.tasks.length} landed
                 </Text>
                 {plan.tasks.map(task => (
-                  <Text dimColor={task.state !== 'failed'} color={task.state === 'failed' ? 'red' : undefined}>
-                    {'  '}
-                    {task.id}: {task.state}
-                    {task.usd == null ? '' : `, ${dollars(task.usd)}`}
-                    {task.note === null ? '' : ` (${task.note.split('\n')[0]})`}
-                  </Text>
+                  <Box key={`task:${plan.id}:${task.id}`}>
+                    <Text dimColor={task.state !== 'failed'} color={task.state === 'failed' ? 'red' : undefined}>
+                      {'  '}
+                      {task.id}: {task.state}
+                      {task.usd == null ? '' : `, ${dollars(task.usd)}`}
+                      {task.note === null ? '' : ` (${task.note.split('\n')[0]})`}
+                    </Text>
+                  </Box>
                 ))}
               </Box>
             ))}
@@ -397,6 +409,16 @@ export const register: Register = on => {
             <Button key={`play:${event}`} hotkey={String(i + 1)} label={label} onPress={() => void play(event)} />
           ))}
         </Box>
+      </Box>
+    )
+    // Nothing beneath draws a plugin's pane, so next(e) would leave it blank.
+    // Say what went wrong instead.
+  }).catch(($, e, next) => {
+    const { Box, Text } = $.ui.resolve(e)
+    return (
+      <Box flexDirection="column">
+        <Text color="red">BOOM! The pane failed to draw.</Text>
+        <Text dimColor>{next.error.message ?? next.error.kind}</Text>
       </Box>
     )
   })

@@ -112,3 +112,13 @@ test('the pane says nothing yet without the workflow plugin', async ($, on) => {
   expect(texts[texts.indexOf('Repo') + 1]).toBe('Nothing yet.')
   await ui.unmount()
 })
+
+test('the pane says it failed when the repo state is malformed', async ($, on) => {
+  on('clock.now', () => ({ value: 0 }))
+  on('state.get', (_, e, next) =>
+    e.plugin === 'workflow' ? { value: { value: { branch: 'feature', target: null }, version: 1 } } : next(e),
+  )
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /failed/ }))?.text).toBe('BOOM! The pane failed to draw.')
+  await ui.unmount()
+})
