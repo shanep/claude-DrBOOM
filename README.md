@@ -40,6 +40,21 @@ line, cut at the card's edge, with a mark for how it stands: a green `✓` when
 it is done or fine, a yellow `✗` for a problem, a red `✗` when it failed, a cyan
 `●` while it runs and `○` while it waits.
 
+The top of the pane is for running agents. Inbox shows up when something
+needs you: a permission or idle prompt (it goes once the session moves on), a
+failed landing, or autopilot stopping. Failures and autopilot also send a
+desktop notification, so you can walk away while agents work. Actions has
+buttons that send a standard prompt: Review diff, Land it, Code review, Hand
+off and Summarize. Queue holds tasks you type into its box. Start turns on
+autopilot, which sends the first task, then the next one each time a turn
+ends. It pauses on its own when you stop a turn, a landing fails or the
+session goes over its budget, and tells you when the queue is empty. Run sends
+one task now and `✗` drops it. Agents lists the subagents and background
+agents with what they are doing and how long they have run, and Stop on a
+running one stops it. A failed landing, a health problem, a failed plan task
+and the last failed tool call each get a Fix button that asks Claude to fix
+it.
+
 Session has the counts, how many tool calls failed or were refused (with the
 last one), a sparkline of how long the last 20 turns took, and a fuse that
 burns down as tool calls come in. The fuse counts the calls in the last minute

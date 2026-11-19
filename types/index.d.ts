@@ -26,6 +26,26 @@ export type Landing = {
   detail: string | null
 }
 
+// Tasks waiting for autopilot, oldest first, and whether it runs them.
+export type Queue = {
+  items: { id: string; text: string }[]
+  isAuto: boolean
+  // Why autopilot stopped on its own, until it is turned on again.
+  pausedFor: string | null
+}
+
+// Something that needs the person, newest first.
+export type InboxEntry = {
+  id: string
+  at: number
+  // waiting: a prompt or permission waits on the person, and goes once the
+  // session moves on. alert: stays until dismissed.
+  kind: 'waiting' | 'alert'
+  text: string
+  // A prompt the Fix button sends, when there is something to fix.
+  fix: string | null
+}
+
 // Landings in a row that passed, and the best run, kept across sessions.
 export type Streak = { current: number; best: number }
 
@@ -98,6 +118,8 @@ declare module 'claude-code' {
       isBandHidden: boolean
       folded: string[]
       streak: Streak | null
+      queue: Queue
+      inbox: InboxEntry[]
     }
     'workflow': { repo: Repo | null }
   }

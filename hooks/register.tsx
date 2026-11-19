@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren, Timer, ToolCallResult } from 'claude-code'
 
-import type { Landing, Progress, Sounds, Stats, Streak } from '../types'
+import type { InboxEntry, Landing, Progress, Queue, Sounds, Stats, Streak } from '../types'
 
 // How Claude talks to Dr. BOOM, added to the end of the system prompt.
 const NAMES = `# Names
@@ -24,6 +24,9 @@ const isBandHidden = atom({ plugin: 'drboom', key: 'isBandHidden' } as const, fa
 // cards are folded, and the landing streak.
 const folded = atom({ plugin: 'drboom', key: 'folded' } as const, [])
 const streak = atom({ plugin: 'drboom', key: 'streak' } as const, null)
+// The tasks autopilot runs one per turn, and what needs the person.
+const queue = atom({ plugin: 'drboom', key: 'queue' } as const, { items: [], isAuto: false, pausedFor: null })
+const inbox = atom({ plugin: 'drboom', key: 'inbox' } as const, [])
 
 // The tools the band counts as edits.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
@@ -44,6 +47,19 @@ const LAND = /(?:^|[\s/])(?:bin\/land|scripts\/land\.sh)\b|\b(?:npm run|make|jus
 // How often the pane reads a background landing's log, and when it gives up.
 const LAND_POLL_MS = 3000
 const LAND_GIVE_UP_MS = 30 * 60000
+
+// How many inbox entries and agents the pane keeps and shows.
+const INBOX_KEPT = 10
+const AGENTS_SHOWN = 8
+
+// The Actions row: each button sends its prompt as if typed.
+const ACTIONS: readonly [string, string][] = [
+  ['Review diff', 'Review the uncommitted diff in this repo for bugs and anything that breaks a CLAUDE.md rule. List findings, do not edit yet.'],
+  ['Land it', 'Commit the finished work in this repo and land it.'],
+  ['Code review', '/code-review'],
+  ['Hand off', '/handoff'],
+  ['Summarize', 'Summarize what changed in this session: what was done, what landed, and anything left open.'],
+]
 
 // What Sergeant Stupid says at the bottom of the pane, a new one each turn.
 const QUIPS = [
@@ -91,6 +107,16 @@ const TASK_MARKS: Record<'waiting' | 'running' | 'landed' | 'failed' | 'stopped'
   landed: 'ok',
   failed: 'failed',
   stopped: 'idle',
+}
+
+const AGENT_MARKS: Record<'pending' | 'running' | 'waiting' | 'idle' | 'completed' | 'failed' | 'killed', Mark> = {
+  pending: 'idle',
+  running: 'busy',
+  waiting: 'idle',
+  idle: 'idle',
+  completed: 'ok',
+  failed: 'failed',
+  killed: 'idle',
 }
 
 // The events the pane can play, with the label each button shows.
@@ -329,8 +355,51 @@ async function finishLanding($: EngineInterface, outcome: Pick<Landing, 'state' 
     $.ui.toast(`BOOM! Landed${outcome.detail === null ? '' : ` ${outcome.detail}`}.`)
     await $.process.run(['sh', `${$.plugin.root}/scripts/play.sh`, 'Land'])
   } else {
-    $.ui.toast(`BOOM! The landing failed${outcome.detail === null ? '.' : `: ${outcome.detail}`}`)
+    const why = outcome.detail ?? 'no reason given'
+    $.ui.toast(`BOOM! The landing failed: ${why}`)
+    await notifyInbox($, 'alert', `Landing failed: ${why}`, `The landing failed: ${why}\nFix what it reports and land again.`)
   }
+}
+
+// Put an entry at the top of the inbox. An alert also goes out as a desktop
+// notification, so it reaches the person away from the terminal.
+async function notifyInbox($: EngineInterface, kind: InboxEntry['kind'], text: string, fix: string | null): Promise<void> {
+  const now = await $.clock.now()
+  const entry: InboxEntry = { id: `${now}:${Math.random().toString(36).slice(2, 8)}`, at: now, kind, text, fix }
+  await update($, inbox, list => [entry, ...list.filter(other => !(other.kind === kind && other.text === text))].slice(0, INBOX_KEPT))
+  if (kind === 'alert') await $.ui.notify(text, { title: 'BOOM!', key: 'drboom-inbox' }).catch(() => undefined)
+}
+
+// The session moved on, so whatever waited on the person has been answered.
+async function clearWaiting($: EngineInterface): Promise<void> {
+  const list = await read($, inbox)
+  if (list.some(entry => entry.kind === 'waiting')) await update($, inbox, l => l.filter(entry => entry.kind !== 'waiting'))
+}
+
+// Stop autopilot and say why.
+async function pauseAutopilot($: EngineInterface, why: string): Promise<void> {
+  await update($, queue, q => ({ ...q, isAuto: false, pausedFor: why }))
+  await notifyInbox($, 'alert', `Autopilot paused: ${why}`, null)
+}
+
+// After a turn of the main loop, start the next queued task, unless
+// something says to stop: a stopped turn, a failed landing or a session over
+// its budget. Running out of tasks is worth an alert too.
+async function autopilot($: EngineInterface, isAborted: boolean): Promise<void> {
+  const q = await read($, queue)
+  if (!q.isAuto) return
+  if (isAborted) return pauseAutopilot($, 'you stopped the last turn.')
+  const s = await read($, stats)
+  if (s?.landing?.state === 'failed') return pauseAutopilot($, 'the last landing failed.')
+  const { value: r } = await $.state.get(repo)
+  if (r?.progress != null && isOver(r.progress)) return pauseAutopilot($, 'the session is over its budget.')
+  const [first, ...rest] = q.items
+  if (first === undefined) {
+    await update($, queue, was => ({ ...was, isAuto: false, pausedFor: null }))
+    return notifyInbox($, 'alert', 'Autopilot finished the queue.', null)
+  }
+  await update($, queue, was => ({ ...was, items: rest }))
+  await $.prompt.submit({ text: first.text, asUser: true })
 }
 
 // Read the folded cards and the streak back from $.store, where they outlast
@@ -354,7 +423,8 @@ async function loadKept($: EngineInterface): Promise<void> {
 
 export const register: Register = on => {
   let turnStartedAt = 0
-  // Redraws the band and the pane each minute so the uptime stays current.
+  // Redraws the band and the pane every 10 seconds, so the uptime and the
+  // agents' status stay current.
   // session.start runs again after /clear, so a second start replaces it.
   let tick: Timer | null = null
 
@@ -365,7 +435,7 @@ export const register: Register = on => {
     await refreshSounds($)
     await loadKept($)
     tick?.cancel()
-    tick = $.clock.every(60000, () => $.ui.invalidate('ui.render'))
+    tick = $.clock.every(10000, () => $.ui.invalidate('ui.render'))
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -381,6 +451,7 @@ export const register: Register = on => {
     const now = await $.clock.now()
     turnStartedAt = now
     await update($, stats, s => bump(s, now, { prompts: (s?.prompts ?? 0) + 1 }))
+    await clearWaiting($)
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -402,6 +473,7 @@ export const register: Register = on => {
         landing: isLand ? { state: 'running', at: now, detail: null } : (s?.landing ?? null),
       }),
     )
+    await clearWaiting($)
     const ran = await next(e)
     await afterCall($, `${e.tool}: ${oneLine(about(e))}`, ran, isLand)
     return ran
@@ -416,6 +488,16 @@ export const register: Register = on => {
         turns: seconds === null ? (s?.turns ?? []) : [...(s?.turns ?? []), seconds].slice(-TURNS),
       }),
     )
+    const done = await next(e)
+    // Only the main loop's turns move the queue, not a subagent's.
+    if (e.agentId === undefined) await autopilot($, e.isAborted).catch(() => undefined)
+    return done
+  }).catch(($, e, next) => next(e))
+
+  // A permission prompt or an idle prompt waits on the person. The engine's
+  // own Notification hook still plays the sound.
+  on('classic.Notification', async ($, e, next) => {
+    await notifyInbox($, 'waiting', oneLine(e.message), null)
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -444,7 +526,7 @@ export const register: Register = on => {
   // plugin sees it, and a sound board that switches profiles, mutes and plays
   // each event's sound.
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Button, Text } = $.ui.resolve(e)
+    const { Box, Button, Input, Text } = $.ui.resolve(e)
     const s = await read($, stats)
     const board = await read($, sounds)
     const { value: r } = await $.state.get(repo)
@@ -519,8 +601,152 @@ export const register: Register = on => {
     const short = (path: string) => (r != null && path.startsWith(`${r.root}/`) ? path.slice(r.root.length + 1) : path)
     const landedCount = (tasks: readonly { state: string }[]) => tasks.filter(task => task.state === 'landed').length
 
+    // The agentic parts: what needs the person, the queue autopilot runs,
+    // and the agents at work. A list that fails to read draws as empty.
+    const q = await read($, queue)
+    const box = await read($, inbox)
+    const agents = await $.agent.list().catch(() => [])
+    const active = (status: string) => status === 'running' || status === 'pending' || status === 'waiting' || status === 'idle'
+    const shownAgents = [...agents]
+      .sort((a, b) => Number(active(b.status)) - Number(active(a.status)) || b.startTime - a.startTime)
+      .slice(0, AGENTS_SHOWN)
+    const runningAgents = agents.filter(a => active(a.status)).length
+    // A button press sends the prompt as if typed. It runs once the session is idle.
+    const send = (text: string) => void $.prompt.submit({ text, asUser: true }).catch(() => undefined)
+    // A row with a Fix button at its end, which asks Claude to fix it.
+    const withFix = (key: string, content: RenderChildren, prompt: string) => (
+      <Box key={key} columnGap={1}>
+        <Box flexGrow={1} flexShrink={1}>
+          {content}
+        </Box>
+        <Button key={`fix:${key}`} label="Fix" onPress={() => send(prompt)} />
+      </Box>
+    )
+    const addTask = async (text: string) => {
+      const task = text.trim()
+      if (task === '') return
+      const id = `${await $.clock.now()}:${Math.random().toString(36).slice(2, 8)}`
+      await update($, queue, was => ({ ...was, items: [...was.items, { id, text: task }] }))
+    }
+    // Turning autopilot on starts the next task now when the session is idle;
+    // after that, each turn's end starts the next.
+    const toggleAuto = async () => {
+      const was = await read($, queue)
+      await update($, queue, () => ({ ...was, isAuto: !was.isAuto, pausedFor: null }))
+      if (!was.isAuto) {
+        const [first, ...rest] = was.items
+        if (first !== undefined) {
+          await update($, queue, now => ({ ...now, items: rest }))
+          send(first.text)
+        }
+      }
+    }
+    const runTask = async (id: string) => {
+      const was = await read($, queue)
+      const task = was.items.find(item => item.id === id)
+      if (task === undefined) return
+      await update($, queue, now => ({ ...now, items: now.items.filter(item => item.id !== id) }))
+      send(task.text)
+    }
+    const dropTask = (id: string) => update($, queue, was => ({ ...was, items: was.items.filter(item => item.id !== id) }))
+    const stopAgent = (id: string, description: string) =>
+      void $.tool
+        .call({ tool: 'TaskStop', task_id: id, consent: `The user pressed "Stop" on the agent "${description}" in the BOOM pane.` })
+        .catch(() => undefined)
+
     return (
       <Box flexDirection="column">
+        {box.length > 0 &&
+          card(
+            'inbox',
+            `Inbox (${box.length})`,
+            <Box flexDirection="column">
+              {box.map(entry => (
+                <Box key={`inbox:${entry.id}`} columnGap={1}>
+                  <Box flexGrow={1} flexShrink={1}>
+                    <Text wrap="truncate-end">
+                      {mark(entry.kind === 'alert' ? 'bad' : 'busy')}
+                      <Text bold>{oneLine(entry.text)}</Text>
+                      <Text dimColor> {age(now - entry.at)} ago</Text>
+                    </Text>
+                  </Box>
+                  {entry.fix !== null && (
+                    <Button key={`inbox:fix:${entry.id}`} label="Fix" onPress={() => send(entry.fix ?? '')} />
+                  )}
+                  <Button
+                    key={`inbox:dismiss:${entry.id}`}
+                    label="Dismiss"
+                    onPress={() => void update($, inbox, list => list.filter(other => other.id !== entry.id))}
+                  />
+                </Box>
+              ))}
+            </Box>,
+          )}
+        {card(
+          'actions',
+          'Actions',
+          <Box flexWrap="wrap">
+            {ACTIONS.map(([label, prompt]) => (
+              <Button key={`action:${label}`} label={label} onPress={() => send(prompt)} />
+            ))}
+          </Box>,
+        )}
+        {card(
+          'queue',
+          `Queue${q.items.length === 0 ? '' : ` (${q.items.length})`}`,
+          <Box flexDirection="column">
+            <Box columnGap={1}>
+              <Text wrap="truncate-end">
+                {mark(q.isAuto ? 'busy' : 'idle')}
+                <Text bold>Autopilot {q.isAuto ? 'on' : 'off'}</Text>
+                <Text dimColor>{q.isAuto ? ' runs the next task when a turn ends' : ''}</Text>
+              </Text>
+              <Button key="queue:auto" label={q.isAuto ? 'Pause' : 'Start'} onPress={() => void toggleAuto()} />
+            </Box>
+            {q.pausedFor !== null && note('queue:paused', `Paused: ${q.pausedFor}`, 'yellow')}
+            {q.items.length === 0 && <Text dimColor>No tasks waiting.</Text>}
+            {q.items.map((item, i) => (
+              <Box key={`queue:${item.id}`} columnGap={1}>
+                <Box flexGrow={1} flexShrink={1}>
+                  <Text wrap="truncate-end">
+                    <Text dimColor>{String(i + 1).padStart(2)}. </Text>
+                    {oneLine(item.text)}
+                  </Text>
+                </Box>
+                <Button key={`queue:run:${item.id}`} label="Run" onPress={() => void runTask(item.id)} />
+                <Button key={`queue:drop:${item.id}`} label="✗" onPress={() => void dropTask(item.id)} />
+              </Box>
+            ))}
+            <Input key="queue:add" placeholder="Add a task for autopilot" submitLabel="Add" onSubmit={value => void addTask(value)} />
+          </Box>,
+        )}
+        {agents.length > 0 &&
+          card(
+            'agents',
+            `Agents${runningAgents === 0 ? '' : ` (${runningAgents} running)`}`,
+            <Box flexDirection="column">
+              {shownAgents.map(a => (
+                <Box key={`agent:${a.id}`} flexDirection="column">
+                  <Box columnGap={1}>
+                    <Box flexGrow={1} flexShrink={1}>
+                      <Text wrap="truncate-end">
+                        {mark(AGENT_MARKS[a.status])}
+                        <Text bold>{oneLine(a.description)}</Text>
+                        <Text dimColor>
+                          {' '}
+                          {a.type} | {age(now - a.startTime)}
+                        </Text>
+                      </Text>
+                    </Box>
+                    {active(a.status) && (
+                      <Button key={`agent:stop:${a.id}`} label="Stop" onPress={() => stopAgent(a.id, a.description)} />
+                    )}
+                  </Box>
+                  {a.label !== a.description && note(`agent:label:${a.id}`, a.label.split('\n')[0] ?? '')}
+                </Box>
+              ))}
+            </Box>,
+          )}
         {card(
           'session',
           'Session',
@@ -535,7 +761,12 @@ export const register: Register = on => {
                   <Text bold>{s.edits}</Text> edits
                   {s.failures > 0 && <Text color="yellow"> | {s.failures} failed</Text>}
                 </Text>
-                {s.lastFailure !== null && note('failure', `last failed: ${s.lastFailure}`)}
+                {s.lastFailure !== null &&
+                  withFix(
+                    'failure',
+                    note('failure:text', `last failed: ${s.lastFailure}`),
+                    `This tool call failed: ${s.lastFailure}\nFind out why and fix it.`,
+                  )}
                 <Text dimColor>
                   up {age(now - s.startedAt)}
                   {s.lastTurnSeconds === null ? '' : ` | last turn ${s.lastTurnSeconds}s`}
@@ -630,7 +861,12 @@ export const register: Register = on => {
               {s?.landing?.state === 'landed' &&
                 row('land', 'ok', 'Landed', `${s.landing.detail ?? ''} ${age(now - s.landing.at)} ago`)}
               {s?.landing?.state === 'failed' && row('land', 'failed', 'Land failed', `${age(now - s.landing.at)} ago`)}
-              {s?.landing?.state === 'failed' && s.landing.detail !== null && note('land:why', s.landing.detail, 'red')}
+              {s?.landing?.state === 'failed' &&
+                withFix(
+                  'land:why',
+                  note('land:why:text', s.landing.detail ?? 'No reason given.', 'red'),
+                  `The landing failed: ${s.landing.detail ?? 'no reason given'}\nFix what it reports and land again.`,
+                )}
               {kept !== null && (
                 <Text wrap="truncate-end">
                   <Text color={kept.current > 0 ? 'yellow' : undefined}>{kept.current > 0 ? '🔥' : '○'} </Text>
@@ -652,7 +888,9 @@ export const register: Register = on => {
                 (r.health.problems.length === 0
                   ? row('head', 'ok', 'Head', `healthy, checked ${age(now - r.health.at)} ago`)
                   : row('head', 'bad', 'Head', `${r.health.problems.length} problem${r.health.problems.length === 1 ? '' : 's'}`))}
-              {r.health?.problems.map((problem, i) => note(`health:${i}`, problem.split('\n')[0] ?? '', 'yellow'))}
+              {r.health?.problems.map((problem, i) =>
+                withFix(`health:${i}`, note(`health:${i}:text`, problem.split('\n')[0] ?? '', 'yellow'), `Fix this repo health problem: ${problem}`),
+              )}
               {r.connectors != null &&
                 row(
                   'connectors',
@@ -729,15 +967,22 @@ export const register: Register = on => {
                     plan.goal,
                     `${plan.id} | ${plan.state}, ${landedCount(plan.tasks)} of ${plan.tasks.length} landed`,
                   )}
-                  {plan.tasks.map(task =>
-                    row(
+                  {plan.tasks.map(task => {
+                    const line = row(
                       `task:${plan.id}:${task.id}`,
                       TASK_MARKS[task.state],
                       task.id,
                       `${task.state}${task.usd == null ? '' : `, ${dollars(task.usd)}`}${task.note === null ? '' : ` (${task.note.split('\n')[0]})`}`,
                       '  ',
-                    ),
-                  )}
+                    )
+                    return task.state === 'failed'
+                      ? withFix(
+                          `task:${plan.id}:${task.id}:fix`,
+                          line,
+                          `Task ${task.id} of plan ${plan.id} (${plan.goal}) failed${task.note === null ? '' : `: ${task.note}`}\nFind out why and fix it.`,
+                        )
+                      : line
+                  })}
                 </Box>
               ))}
             </Box>,

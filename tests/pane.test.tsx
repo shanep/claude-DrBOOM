@@ -163,3 +163,87 @@ test('the pane follows a landing, counts failures and lists edited files', async
   expect(await line(/a\.txt/)).toBe('  2× /x/a.txt 0m ago')
   await ui.unmount()
 })
+
+test('autopilot runs the queue one task per turn and says when it is done', async ($, on) => {
+  on('clock.now', () => ({ value: 120_000 }))
+  mock.store(on)
+  const sent: string[] = []
+  on('prompt.submit', (_, e) => {
+    sent.push(e.text)
+    return { text: e.text }
+  })
+  on('turn.complete', () => ({ text: '' }))
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.input({ key: 'queue:add', text: 'Fix the login bug' })
+  await ui.input({ key: 'queue:add', text: 'Write the docs' })
+  expect((await ui.find({ type: 'Text', text: /Fix the login/ }))?.text).toBe(' 1. Fix the login bug')
+
+  // Start sends the first task at once, and each turn's end sends the next.
+  await ui.press({ key: 'queue:auto' })
+  expect(sent).toEqual(['Fix the login bug'])
+  const turn = { answer: '', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' } as const
+  await $.turn.complete({ ...turn, turnId: 't1' })
+  expect(sent).toEqual(['Fix the login bug', 'Write the docs'])
+  await $.turn.complete({ ...turn, turnId: 't2' })
+  expect((await ui.find({ type: 'Text', text: /finished the queue/ }))?.text).toBe('✗ Autopilot finished the queue. 0m ago')
+  expect((await ui.find({ type: 'Text', text: /Autopilot off/ }))).toBeDefined()
+
+  // An Actions button sends its prompt.
+  await ui.press({ key: 'action:Summarize' })
+  expect(sent[sent.length - 1]).toMatch(/^Summarize what changed/)
+  await ui.unmount()
+})
+
+test('autopilot pauses when a turn is stopped', async ($, on) => {
+  on('clock.now', () => ({ value: 0 }))
+  mock.store(on)
+  const sent: string[] = []
+  on('prompt.submit', (_, e) => {
+    sent.push(e.text)
+    return { text: e.text }
+  })
+  on('turn.complete', () => ({ text: '' }))
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await ui.input({ key: 'queue:add', text: 'one' })
+  await ui.input({ key: 'queue:add', text: 'two' })
+  await ui.press({ key: 'queue:auto' })
+  await $.turn.complete({ answer: '', durationMs: 1, isAborted: true, turnId: 't1', reason: 'aborted' })
+  expect(sent).toEqual(['one'])
+  expect((await ui.find({ type: 'Text', text: /^  Paused/ }))?.text).toBe('  Paused: you stopped the last turn.')
+  await ui.unmount()
+})
+
+test('the inbox shows a waiting prompt until the session moves on', async ($, on) => {
+  on('clock.now', () => ({ value: 0 }))
+  mock.store(on)
+  on('prompt.submit', (_, e) => ({ text: e.text }))
+  on('classic.Notification', () => ({}))
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  await $.classic.Notification({ message: 'Claude needs your permission to use Bash', notification_type: 'permission_prompt' })
+  expect((await ui.find({ type: 'Text', text: /permission/ }))?.text).toBe('● Claude needs your permission to use Bash 0m ago')
+  await $.prompt.submit({ text: 'go on' })
+  expect(await ui.find({ type: 'Text', text: /permission/ })).toBe(undefined)
+  await ui.unmount()
+})
+
+test('the agents card lists agents with a Stop button on running ones', async ($, on) => {
+  on('clock.now', () => ({ value: 180_000 }))
+  const agent = {
+    id: 'a1',
+    description: 'Port the parser',
+    type: 'general-purpose',
+    kind: 'local_agent',
+    taskStatus: 'running',
+    label: 'Reading lexer.rs',
+    startTime: 60_000,
+    cwd: '/repo',
+  } as const
+  on('agent.list', () => ({ value: [{ ...agent, status: 'running' }, { ...agent, id: 'a2', description: 'Find the tests', status: 'completed', label: 'Find the tests' }] }))
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^Agents/ }))?.text).toBe('Agents (1 running)')
+  expect((await ui.find({ type: 'Text', text: /Port the parser/ }))?.text).toBe('● Port the parser general-purpose | 2m')
+  expect((await ui.find({ type: 'Text', text: /lexer/ }))?.text).toBe('  Reading lexer.rs')
+  expect(await ui.find({ key: 'agent:stop:a1' })).toBeDefined()
+  expect(await ui.find({ key: 'agent:stop:a2' })).toBe(undefined)
+  await ui.unmount()
+})
