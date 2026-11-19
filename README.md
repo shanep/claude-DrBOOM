@@ -32,24 +32,25 @@ of the session.
 ## Pane
 
 `/boom` opens a pane beside the chat with the same counts as the band, the six
-tools Claude called most, the repo, and a sound board. Each part is its own
-card with a rounded border and a cyan title, so the parts are easy to tell
-apart. The Repo, Health and Sessions cards come from the
+tools Claude called most, the repo, and a sound board. Each part is its own card
+with a rounded border and a cyan title, so the parts are easy to tell apart. The
+Repo, Health and Sessions cards come from the
 [workflow](https://github.com/shanep/claude-workflow) plugin. Repo has this
 session's branch and changed files, files to rebase on, edits it paused, its
 ports, how the worktree setup went, and whether it keeps the computer awake.
-Health has what the startup health check found, which MCP servers and
-connectors work, and how many check slots are busy. Sessions lists the other
-sessions in the repo and what they are changing. With workflow the session counts also show what the session has
-cost against its budget, how far through its task list it is and a guess at
-what is left, and each other session gets the same line, yellow once it is
-over budget. Without workflow the Repo card says "Nothing yet." Below it, the newest
-workflow plans list each task, whether it is waiting, running, landed or
-failed, and what it cost. An Auto mode section counts the calls auto mode let
-through and refused in this session and shows the newest three. The board has a button for
-each profile (the active one has a `*`), Mute or Unmute, and a button that
-plays each event's sound. With the pane focused, `m` mutes or unmutes and `1`
-to `7` play Start, Prompt, Notify, Permission, Subagent, Stop and End.
+Health has what the startup health check found, which MCP servers and connectors
+work, and how many check slots are busy. Sessions lists the other sessions in
+the repo and what they are changing. With workflow the session counts also show
+what the session has cost against its budget, how far through its task list it
+is and a guess at what is left, and each other session gets the same line,
+yellow once it is over budget. Without workflow the Repo card says "Nothing
+yet." Below it, the newest workflow plans list each task, whether it is waiting,
+running, landed or failed, and what it cost. An Auto mode card counts the calls
+auto mode let through and refused in this session and shows the newest three.
+The board has a button for each profile (the active one has a `*`), Mute or
+Unmute, and a button that plays each event's sound. With the pane focused, `m`
+mutes or unmutes and `1` to `7` play Start, Prompt, Notify, Permission,
+Subagent, Stop and End.
 
 The pane docks beside the transcript in fullscreen from 110 columns and sits
 above the prompt otherwise. It redraws when the session does something and
