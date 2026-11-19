@@ -8,6 +8,9 @@ stats and a sound board, and plays your own sound files on hook events.
 Works on macOS (`afplay`) and Linux (`paplay`, `pw-play`, `aplay` or `ffplay`,
 whichever it finds first).
 
+See [docs/HELP.md](docs/HELP.md) for pictures of every card and how to run a
+queue of tasks with autopilot.
+
 ## Names
 
 A hooks module (`hooks/register.ts`) adds a system prompt section telling
@@ -88,8 +91,7 @@ pane every turn.
 
 The pane docks beside the transcript in fullscreen from 110 columns and sits
 above the prompt otherwise. It redraws when the session does something and
-once a minute, so the uptime on it and the band is never more than a minute
-behind.
+every 10 seconds, so the times and the agents stay current.
 
 ## Spinner and turn line
 
