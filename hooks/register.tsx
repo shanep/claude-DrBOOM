@@ -33,6 +33,30 @@ const repo = { plugin: 'workflow', key: 'repo' } as const
 // How many files a pane row lists before "and n more".
 const PANE_FILES = 5
 
+// The marks the pane's rows start with, and their colors: done or fine,
+// a problem, at work, and waiting or idle.
+type Mark = 'ok' | 'bad' | 'failed' | 'busy' | 'idle'
+const MARKS: Record<Mark, readonly [string, 'green' | 'yellow' | 'red' | 'cyan' | undefined]> = {
+  ok: ['✓', 'green'],
+  bad: ['✗', 'yellow'],
+  failed: ['✗', 'red'],
+  busy: ['●', 'cyan'],
+  idle: ['○', undefined],
+}
+const PLAN_MARKS: Record<'running' | 'done' | 'failed' | 'stopped', Mark> = {
+  running: 'busy',
+  done: 'ok',
+  failed: 'failed',
+  stopped: 'idle',
+}
+const TASK_MARKS: Record<'waiting' | 'running' | 'landed' | 'failed' | 'stopped', Mark> = {
+  waiting: 'idle',
+  running: 'busy',
+  landed: 'ok',
+  failed: 'failed',
+  stopped: 'idle',
+}
+
 // The events the pane can play, with the label each button shows.
 const EVENTS: readonly [string, string][] = [
   ['SessionStart', 'Start'],
@@ -263,7 +287,30 @@ export const register: Register = on => {
         {body}
       </Box>
     )
+    // Every card draws its rows the same way: one line each, cut at the
+    // card's edge, a colored mark for how it stands, the name in bold and the
+    // details dim. Long text wrapped across many rows buried what mattered.
+    const mark = (kind: Mark) => <Text color={MARKS[kind][1]}>{MARKS[kind][0]} </Text>
+    const row = (key: string, kind: Mark | null, name: string, detail = '', indent = '') => (
+      <Box key={key}>
+        <Text wrap="truncate-end">
+          {indent}
+          {kind !== null && mark(kind)}
+          <Text bold>{name}</Text>
+          <Text dimColor>{detail === '' ? '' : ` ${oneLine(detail)}`}</Text>
+        </Text>
+      </Box>
+    )
+    const note = (key: string, text: string, color?: 'yellow' | 'red') => (
+      <Box key={key}>
+        <Text wrap="truncate-end" dimColor={color === undefined} color={color}>
+          {'  '}
+          {oneLine(text)}
+        </Text>
+      </Box>
+    )
     const hasHealth = r != null && (r.health != null || r.connectors != null || r.checks != null)
+    const landed = (tasks: readonly { state: string }[]) => tasks.filter(task => task.state === 'landed').length
 
     return (
       <Box flexDirection="column">
@@ -276,15 +323,21 @@ export const register: Register = on => {
             ) : (
               <Box flexDirection="column">
                 <Text>
-                  {s.prompts} prompts | {s.tools} tool calls | {s.edits} edits
+                  <Text bold>{s.prompts}</Text> prompts<Text dimColor> | </Text>
+                  <Text bold>{s.tools}</Text> tool calls<Text dimColor> | </Text>
+                  <Text bold>{s.edits}</Text> edits
                 </Text>
                 <Text dimColor>
                   up {age(now - s.startedAt)}
-                  {s.lastTurnSeconds === null ? '' : ` | last turn: ${s.lastTurnSeconds}s`}
+                  {s.lastTurnSeconds === null ? '' : ` | last turn ${s.lastTurnSeconds}s`}
                 </Text>
               </Box>
             )}
-            {r?.progress != null && <Text color={isOver(r.progress) ? 'yellow' : undefined}>{progress(r.progress)}</Text>}
+            {r?.progress != null && (
+              <Text wrap="truncate-end" color={isOver(r.progress) ? 'yellow' : undefined}>
+                {progress(r.progress)}
+              </Text>
+            )}
           </Box>,
         )}
         {card(
@@ -294,8 +347,9 @@ export const register: Register = on => {
             {top.length === 0 && <Text dimColor>No tool calls yet.</Text>}
             {top.map(([tool, n]) => (
               <Box key={`tool:${tool}`}>
-                <Text>
-                  {String(n).padStart(4)} {tool}
+                <Text wrap="truncate-end">
+                  <Text dimColor>{String(n).padStart(4)} </Text>
+                  <Text bold>{tool}</Text>
                 </Text>
               </Box>
             ))}
@@ -308,26 +362,22 @@ export const register: Register = on => {
             <Text dimColor>Nothing yet.</Text>
           ) : (
             <Box flexDirection="column">
-              <Text>
-                {r.branch ?? 'no branch'}
-                {r.target === null || r.target === r.branch ? '' : ` | lands on ${r.target}`}
+              <Text wrap="truncate-end">
+                <Text bold>{r.branch ?? 'no branch'}</Text>
+                <Text dimColor>{r.target === null || r.target === r.branch ? '' : ` lands on ${r.target}`}</Text>
               </Text>
-              <Text dimColor>{r.files.length === 0 ? 'No changes yet.' : `Changing ${files(r.files)}`}</Text>
-              {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
-              {r.paused.map(p => (
-                <Box key={`paused:${p.file}:${p.at}`}>
-                  <Text dimColor>
-                    Paused an edit to {p.file} {age(now - p.at)} ago
-                  </Text>
-                </Box>
-              ))}
-              {r.ports != null && (
-                <Text dimColor>
-                  Ports {r.ports} to {r.ports + 99}
+              {r.files.length === 0
+                ? row('files', 'idle', 'No changes yet')
+                : row('files', 'busy', 'Changing', files(r.files))}
+              {r.upstream.length > 0 && (
+                <Text wrap="truncate-end" color="yellow">
+                  {mark('bad')}Rebase: {r.target} changed {files(r.upstream)}
                 </Text>
               )}
-              {r.setup != null && <Text dimColor>{r.setup}</Text>}
-              {r.isAwake === true && <Text dimColor>Keeping this computer awake</Text>}
+              {r.paused.map(p => row(`paused:${p.file}:${p.at}`, 'idle', 'Paused', `an edit to ${p.file} ${age(now - p.at)} ago`))}
+              {r.ports != null && row('ports', 'idle', 'Ports', `${r.ports} to ${r.ports + 99}`)}
+              {r.isAwake === true && row('awake', 'busy', 'Awake', 'keeping this computer awake')}
+              {r.setup != null && note('setup', r.setup)}
             </Box>
           ),
         )}
@@ -337,35 +387,21 @@ export const register: Register = on => {
             'health',
             'Health',
             <Box flexDirection="column">
-              {r.health != null && r.health.problems.length === 0 && (
-                <Text dimColor>Healthy at head, checked {age(now - r.health.at)} ago</Text>
-              )}
-              {r.health != null && r.health.problems.length > 0 && (
-                <Text color="yellow">
-                  Health: {r.health.problems.length} problem{r.health.problems.length === 1 ? '' : 's'} at head
-                </Text>
-              )}
-              {r.health?.problems.map((problem, i) => (
-                <Box key={`health:${i}`}>
-                  <Text dimColor>- {problem.split('\n')[0]}</Text>
-                </Box>
-              ))}
-              {r.connectors != null && (
-                <Text dimColor={r.connectors.problems.length === 0} color={r.connectors.problems.length === 0 ? undefined : 'yellow'}>
-                  Connectors: {r.connectors.ready} connected
-                  {r.connectors.problems.length === 0 ? '' : `, ${r.connectors.problems.length} not working`}
-                </Text>
-              )}
-              {r.connectors?.problems.map((problem, i) => (
-                <Box key={`connector:${i}`}>
-                  <Text dimColor>- {problem}</Text>
-                </Box>
-              ))}
-              {r.checks != null && (
-                <Text dimColor={r.checks.busy < r.checks.slots} color={r.checks.busy < r.checks.slots ? undefined : 'yellow'}>
-                  Checks: {r.checks.busy} of {r.checks.slots} slots busy
-                </Text>
-              )}
+              {r.health != null &&
+                (r.health.problems.length === 0
+                  ? row('head', 'ok', 'Head', `healthy, checked ${age(now - r.health.at)} ago`)
+                  : row('head', 'bad', 'Head', `${r.health.problems.length} problem${r.health.problems.length === 1 ? '' : 's'}`))}
+              {r.health?.problems.map((problem, i) => note(`health:${i}`, problem.split('\n')[0] ?? '', 'yellow'))}
+              {r.connectors != null &&
+                row(
+                  'connectors',
+                  r.connectors.problems.length === 0 ? 'ok' : 'bad',
+                  'Connectors',
+                  `${r.connectors.ready} connected${r.connectors.problems.length === 0 ? '' : `, ${r.connectors.problems.length} not working`}`,
+                )}
+              {r.connectors?.problems.map((problem, i) => note(`connector:${i}`, problem, 'yellow'))}
+              {r.checks != null &&
+                row('checks', r.checks.busy < r.checks.slots ? 'ok' : 'bad', 'Checks', `${r.checks.busy} of ${r.checks.slots} slots busy`)}
             </Box>,
           )}
         {r != null &&
@@ -376,16 +412,14 @@ export const register: Register = on => {
               {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
               {r.peers.map((peer, i) => (
                 <Box key={`peer:${i}`} flexDirection="column">
-                  <Text>
-                    {peer.topic === null ? 'A session' : `"${peer.topic}"`} {peer.where}
-                    {peer.files.length === 0 ? '' : `: ${files(peer.files)}`}
-                  </Text>
-                  {peer.progress != null && (
-                    <Text dimColor={!isOver(peer.progress)} color={isOver(peer.progress) ? 'yellow' : undefined}>
-                      {'  '}
-                      {progress(peer.progress)}
-                    </Text>
+                  {row(
+                    `peer:${i}:name`,
+                    peer.progress != null && isOver(peer.progress) ? 'bad' : 'busy',
+                    peer.topic ?? 'A session',
+                    `${peer.where}${peer.files.length === 0 ? '' : `: ${files(peer.files)}`}`,
                   )}
+                  {peer.progress != null &&
+                    note(`peer:${i}:progress`, progress(peer.progress), isOver(peer.progress) ? 'yellow' : undefined)}
                 </Box>
               ))}
             </Box>,
@@ -400,8 +434,7 @@ export const register: Register = on => {
                 <Text dimColor> | </Text>
                 <Text color={r.audit.denied === 0 ? undefined : 'yellow'}>{r.audit.denied} refused</Text>
               </Text>
-              {/* One line per decision, newest first: a command can run to many
-                  lines, and wrapping them all buried the decisions. */}
+              {/* Newest first, with the age in a column so the marks line up. */}
               {[...r.audit.recent].reverse().map((entry, i) => (
                 <Box key={`audit:${i}`} flexDirection="column">
                   <Text wrap="truncate-end">
@@ -429,19 +462,21 @@ export const register: Register = on => {
             <Box flexDirection="column">
               {r.plans.map(plan => (
                 <Box key={`plan:${plan.id}`} flexDirection="column">
-                  <Text color={plan.state === 'failed' ? 'red' : undefined}>
-                    {plan.id}: {plan.goal} | {plan.state}, {plan.tasks.filter(task => task.state === 'landed').length} of {plan.tasks.length} landed
-                  </Text>
-                  {plan.tasks.map(task => (
-                    <Box key={`task:${plan.id}:${task.id}`}>
-                      <Text dimColor={task.state !== 'failed'} color={task.state === 'failed' ? 'red' : undefined}>
-                        {'  '}
-                        {task.id}: {task.state}
-                        {task.usd == null ? '' : `, ${dollars(task.usd)}`}
-                        {task.note === null ? '' : ` (${task.note.split('\n')[0]})`}
-                      </Text>
-                    </Box>
-                  ))}
+                  {row(
+                    `plan:${plan.id}:goal`,
+                    PLAN_MARKS[plan.state],
+                    plan.goal,
+                    `${plan.id} | ${plan.state}, ${landed(plan.tasks)} of ${plan.tasks.length} landed`,
+                  )}
+                  {plan.tasks.map(task =>
+                    row(
+                      `task:${plan.id}:${task.id}`,
+                      TASK_MARKS[task.state],
+                      task.id,
+                      `${task.state}${task.usd == null ? '' : `, ${dollars(task.usd)}`}${task.note === null ? '' : ` (${task.note.split('\n')[0]})`}`,
+                      '  ',
+                    ),
+                  )}
                 </Box>
               ))}
             </Box>,
