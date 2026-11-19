@@ -93,6 +93,11 @@ function files(list: readonly string[]): string {
   return list.slice(0, PANE_FILES).join(', ') + (rest > 0 ? ` and ${rest} more` : '')
 }
 
+// Text squeezed onto one line, so a multi-line command reads as one row.
+function oneLine(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
 function dollars(usd: number): string {
   return `$${usd.toFixed(2)}`
 }
@@ -390,16 +395,30 @@ export const register: Register = on => {
             'audit',
             'Auto mode',
             <Box flexDirection="column">
-              <Text dimColor>
-                Let {r.audit.allowed} through | refused {r.audit.denied} | /audit lists them
+              <Text>
+                <Text color="green">{r.audit.allowed} allowed</Text>
+                <Text dimColor> | </Text>
+                <Text color={r.audit.denied === 0 ? undefined : 'yellow'}>{r.audit.denied} refused</Text>
               </Text>
-              {r.audit.recent.map((entry, i) => (
-                <Box key={`audit:${i}`}>
-                  <Text dimColor={entry.decision === 'allow'} color={entry.decision === 'deny' ? 'yellow' : undefined}>
-                    {age(now - entry.at)} ago {entry.decision === 'allow' ? 'let through' : 'refused'} {entry.tool}: {entry.what}
+              {/* One line per decision, newest first: a command can run to many
+                  lines, and wrapping them all buried the decisions. */}
+              {[...r.audit.recent].reverse().map((entry, i) => (
+                <Box key={`audit:${i}`} flexDirection="column">
+                  <Text wrap="truncate-end">
+                    <Text dimColor>{age(now - entry.at).padStart(6)} </Text>
+                    {entry.decision === 'allow' ? <Text color="green">✓</Text> : <Text color="yellow">✗</Text>}
+                    <Text bold> {entry.tool}</Text>
+                    <Text dimColor> {oneLine(entry.what)}</Text>
                   </Text>
+                  {entry.decision === 'deny' && entry.reason !== null && (
+                    <Text color="yellow" wrap="truncate-end">
+                      {'         '}
+                      {oneLine(entry.reason)}
+                    </Text>
+                  )}
                 </Box>
               ))}
+              <Text dimColor>/audit lists them all</Text>
             </Box>,
           )}
         {r?.plans != null &&
