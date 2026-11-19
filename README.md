@@ -50,7 +50,7 @@ autopilot, which sends the first task, then the next one each time a turn
 ends. It pauses on its own when you stop a turn, a landing fails or the
 session goes over its budget, and tells you when the queue is empty. Run sends
 one task now and `✗` drops it. Agents lists the subagents and background
-agents with what they are doing and how long they have run, and Stop on a
+agents with what they are doing and how long they have run (or says none run), and Stop on a
 running one stops it. A failed landing, a health problem, a failed plan task
 and the last failed tool call each get a Fix button that asks Claude to fix
 it.

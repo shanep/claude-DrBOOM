@@ -720,11 +720,11 @@ export const register: Register = on => {
             <Input key="queue:add" placeholder="Add a task for autopilot" submitLabel="Add" onSubmit={value => void addTask(value)} />
           </Box>,
         )}
-        {agents.length > 0 &&
-          card(
+        {card(
             'agents',
             `Agents${runningAgents === 0 ? '' : ` (${runningAgents} running)`}`,
             <Box flexDirection="column">
+              {agents.length === 0 && <Text dimColor>No agents running. Subagents and background agents show up here.</Text>}
               {shownAgents.map(a => (
                 <Box key={`agent:${a.id}`} flexDirection="column">
                   <Box columnGap={1}>

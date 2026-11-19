@@ -247,3 +247,12 @@ test('the agents card lists agents with a Stop button on running ones', async ($
   expect(await ui.find({ key: 'agent:stop:a2' })).toBe(undefined)
   await ui.unmount()
 })
+
+test('the agents card says so when no agents run', async ($, on) => {
+  on('clock.now', () => ({ value: 0 }))
+  on('agent.list', () => ({ value: [] }))
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: /^Agents/ }))?.text).toBe('Agents')
+  expect(await ui.find({ type: 'Text', text: /No agents running/ })).toBeDefined()
+  await ui.unmount()
+})
