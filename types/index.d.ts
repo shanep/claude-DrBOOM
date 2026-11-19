@@ -6,7 +6,28 @@ export type Stats = {
   edits: number
   lastTurnSeconds: number | null
   byTool: Record<string, number>
+  // How long the last turns took, in seconds, oldest first.
+  turns: number[]
+  // Tool calls that failed or were refused, and the last one.
+  failures: number
+  lastFailure: string | null
+  // The files edited, by path, with how often and when last.
+  touched: Record<string, { count: number; at: number }>
+  // When the last tool calls ran, for the BOOM meter, oldest first.
+  calls: number[]
+  landing: Landing | null
 }
+
+// The last landing this session started, as the pane follows it.
+export type Landing = {
+  state: 'running' | 'landed' | 'failed'
+  at: number
+  // The commit that landed, or the line that says why it failed.
+  detail: string | null
+}
+
+// Landings in a row that passed, and the best run, kept across sessions.
+export type Streak = { current: number; best: number }
 
 // What profile.sh lists: the profiles, the active one and the mute state.
 export type Sounds = { profiles: string[]; active: string; isMuted: boolean }
@@ -71,7 +92,13 @@ export type Repo = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'drboom': { stats: Shaped<Stats | null>; sounds: Sounds | null; isBandHidden: boolean }
+    'drboom': {
+      stats: Shaped<Stats | null>
+      sounds: Sounds | null
+      isBandHidden: boolean
+      folded: string[]
+      streak: Streak | null
+    }
     'workflow': { repo: Repo | null }
   }
 }

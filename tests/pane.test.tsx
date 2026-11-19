@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 const PANE = {
   plugin: 'drboom',
@@ -129,5 +129,37 @@ test('the pane says it failed when the repo state is malformed', async ($, on) =
   )
   const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
   expect((await ui.find({ type: 'Text', text: /failed/ }))?.text).toBe('BOOM! The pane failed to draw.')
+  await ui.unmount()
+})
+
+test('the pane follows a landing, counts failures and lists edited files', async ($, on) => {
+  on('clock.now', () => ({ value: 120_000 }))
+  mock.store(on)
+  on('tool.call', (_, e) => {
+    if (e.tool === 'Bash' && e.command.includes('bin/land')) {
+      return { result: { stdout: 'land: landed abc1234 on master.\n', stderr: '', interrupted: false } }
+    }
+    if (e.tool === 'Bash') return { deny: 'Not today.' }
+    return { result: { filePath: '/x/a.txt', oldString: '', newString: '', originalFile: '', structuredPatch: [], userModified: false, replaceAll: false } }
+  })
+  await $.tool.call({ tool: 'Edit', file_path: '/x/a.txt', old_string: 'a', new_string: 'b' })
+  await $.tool.call({ tool: 'Edit', file_path: '/x/a.txt', old_string: 'b', new_string: 'c' })
+  await $.tool.call({ tool: 'Bash', command: 'rm -rf /' })
+  await $.tool.call({ tool: 'Bash', command: '~/.claude/bin/land' })
+
+  const ui = await $.ui.mount({ ...PANE, surface: 'terminal' })
+  const line = async (text: RegExp) => (await ui.find({ type: 'Text', text }))?.text
+  expect(await line(/failed$/)).toBe('0 prompts | 4 tool calls | 2 edits | 1 failed')
+  expect(await line(/last failed/)).toBe('  last failed: Bash: rm -rf /')
+  expect(await line(/a\.txt/)).toBe('  2× /x/a.txt 0m ago')
+  expect(await line(/Landed/)).toBe('✓ Landed abc1234 on master 0m ago')
+  expect(await line(/in a row/)).toBe('🔥 1 landing in a row | best 1')
+  expect(await line(/fuse/)).toBe('fuse  ╸········· 4/min')
+
+  // Folding a card leaves only its title, and pressing again opens it.
+  await ui.press({ key: 'fold:files' })
+  expect(await line(/a\.txt/)).toBe(undefined)
+  await ui.press({ key: 'fold:files' })
+  expect(await line(/a\.txt/)).toBe('  2× /x/a.txt 0m ago')
   await ui.unmount()
 })

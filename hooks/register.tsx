@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, RenderChildren, Timer } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren, Timer, ToolCallResult } from 'claude-code'
 
-import type { Progress, Sounds, Stats } from '../types'
+import type { Landing, Progress, Sounds, Stats, Streak } from '../types'
 
 // How Claude talks to Dr. BOOM, added to the end of the system prompt.
 const NAMES = `# Names
@@ -16,12 +16,48 @@ const CHANGED = /^(Switched to .+|Sounds muted|Sounds on)\.$/
 // The band above the prompt and the pane read these. They live in $.state so
 // a reload keeps the counts. Change the tag when Stats changes, so a reload
 // starts the counts over instead of reading an older shape.
-const stats = atom({ plugin: 'drboom', key: 'stats' } as const, null, { shape: 'stats-2' })
+const stats = atom({ plugin: 'drboom', key: 'stats' } as const, null, { shape: 'stats-3' })
+
 const sounds = atom({ plugin: 'drboom', key: 'sounds' } as const, null)
 const isBandHidden = atom({ plugin: 'drboom', key: 'isBandHidden' } as const, false)
+// These two are also kept in $.store, so they outlast the session: which
+// cards are folded, and the landing streak.
+const folded = atom({ plugin: 'drboom', key: 'folded' } as const, [])
+const streak = atom({ plugin: 'drboom', key: 'streak' } as const, null)
 
 // The tools the band counts as edits.
 const EDIT_TOOLS = new Set(['Edit', 'Write', 'NotebookEdit'])
+
+// How many turns the sparkline draws and how many files the Files card lists.
+const TURNS = 20
+const TOUCHED = 8
+
+// The BOOM meter counts tool calls in the last minute and goes off at this
+// many. It keeps 5 minutes of calls, at most 500.
+const METER_BOOM = 30
+const METER_CELLS = 10
+const CALLS_KEPT_MS = 5 * 60000
+const CALLS_KEPT = 500
+
+// A command that lands work, wherever the land script lives.
+const LAND = /(?:^|[\s/])(?:bin\/land|scripts\/land\.sh)\b|\b(?:npm run|make|just) land\b/
+// How often the pane reads a background landing's log, and when it gives up.
+const LAND_POLL_MS = 3000
+const LAND_GIVE_UP_MS = 30 * 60000
+
+// What Sergeant Stupid says at the bottom of the pane, a new one each turn.
+const QUIPS = [
+  'Sergeant Stupid reporting for duty, Dr. BOOM!',
+  'If it compiles, it ships. If it ships, it BOOMs.',
+  'I read the manual. Then I lit it on fire.',
+  'Tests are just explosions we planned for.',
+  'Every merge conflict is a tiny BOOM.',
+  'I put the "fun" in "function". And the "un" in "unit test".',
+  'Duck and cover, the linter is coming through.',
+  'No bugs were harmed in the making of this commit. Probably.',
+  'Rebasing is just time travel with extra steps.',
+  'The fuse is lit. Nobody panic. Except the bugs.',
+]
 
 // The pane /boom opens.
 const PANE = 'boom'
@@ -102,7 +138,20 @@ function pick(words: readonly string[], word: string): string {
 }
 
 function bump(s: Stats | null, now: number, change: Partial<Stats>): Stats {
-  const base: Stats = s ?? { startedAt: now, prompts: 0, tools: 0, edits: 0, lastTurnSeconds: null, byTool: {} }
+  const base: Stats = s ?? {
+    startedAt: now,
+    prompts: 0,
+    tools: 0,
+    edits: 0,
+    lastTurnSeconds: null,
+    byTool: {},
+    turns: [],
+    failures: 0,
+    lastFailure: null,
+    touched: {},
+    calls: [],
+    landing: null,
+  }
   return { ...base, ...change }
 }
 
@@ -120,6 +169,44 @@ function files(list: readonly string[]): string {
 // Text squeezed onto one line, so a multi-line command reads as one row.
 function oneLine(text: string): string {
   return text.replace(/\s+/g, ' ').trim()
+}
+
+// Turn lengths as bars, the longest turn a full block.
+function sparkline(turns: readonly number[]): string {
+  const bars = '▁▂▃▄▅▆▇█'
+  const most = Math.max(1, ...turns)
+  return turns.map(t => bars[Math.min(bars.length - 1, Math.floor((t / most) * bars.length))] ?? '▁').join('')
+}
+
+// Tool calls in the last minute as a burning fuse, "━━━━╸····· 12/min".
+function meter(calls: readonly number[], now: number): { bar: string; rate: number; isBoom: boolean } {
+  const rate = calls.filter(at => now - at < 60000).length
+  const lit = Math.min(METER_CELLS, Math.round((rate / METER_BOOM) * METER_CELLS))
+  const bar = lit === 0 ? '·'.repeat(METER_CELLS) : '━'.repeat(lit - 1) + '╸' + '·'.repeat(METER_CELLS - lit)
+  return { bar, rate, isBoom: rate >= METER_BOOM }
+}
+
+// What a tool call was about, for a row: the command, the file or the pattern.
+function about(e: object): string {
+  for (const key of ['command', 'file_path', 'notebook_path', 'pattern', 'url', 'query', 'description']) {
+    const value: unknown = (e as Record<string, unknown>)[key]
+    if (typeof value === 'string' && value !== '') return value
+  }
+  return ''
+}
+
+// How a landing ended, read from its output, or null while it still runs.
+// The land script ends with "land: landed abc1234 on master." and a
+// background run's log with "[exited with code n]".
+function landed(out: string, exitCode: number | null): Pick<Landing, 'state' | 'detail'> | null {
+  const done = /land: landed (\w+) on (\S+?)\.?$/m.exec(out)
+  if (done !== null) return { state: 'landed', detail: `${done[1] ?? ''} on ${done[2] ?? ''}` }
+  const exited = /\[exited with code (\d+)\]/.exec(out)
+  const code = exited === null ? exitCode : Number(exited[1])
+  if (code === null) return null
+  const lines = out.split('\n').map(line => line.trim()).filter(line => line !== '' && !line.startsWith('[exited'))
+  const said = [...lines].reverse().find(line => line.startsWith('land:')) ?? lines[lines.length - 1] ?? null
+  return code === 0 ? { state: 'landed', detail: said } : { state: 'failed', detail: said ?? `exit code ${code}` }
 }
 
 function dollars(usd: number): string {
@@ -181,6 +268,90 @@ async function refreshSounds($: EngineInterface): Promise<void> {
   }
 }
 
+// Reads a background landing's log until it ends.
+let landWatch: Timer | null = null
+
+// Count a failed or refused call, and follow a landing to its end. It
+// never throws, since the tool has run and the .catch would run it again.
+async function afterCall($: EngineInterface, what: string, ran: ToolCallResult, isLand: boolean): Promise<void> {
+  try {
+    const now = await $.clock.now()
+    const isFailed = ran.deny !== undefined || ran.isError === true
+    if (isFailed) {
+      await update($, stats, s => bump(s, now, { failures: (s?.failures ?? 0) + 1, lastFailure: what }))
+    }
+    if (!isLand) return
+    if (ran.deny !== undefined) return await finishLanding($, { state: 'failed', detail: oneLine(ran.deny) })
+    // A background run answers at once with the log it writes to. Read the
+    // log until it ends. A foreground run has ended, so read its output.
+    const said = `${ran.text ?? ''} ${JSON.stringify(ran.result ?? '')}`
+    const log = /written to: ([^\s"\\]+?)\.?(?:\s|"|\\|$)/.exec(said)?.[1]
+    if (log !== undefined) return watchLanding($, log, now)
+    const result = (ran.result ?? {}) as { stdout?: unknown; stderr?: unknown }
+    const out = `${typeof result.stdout === 'string' ? result.stdout : ''}\n${typeof result.stderr === 'string' ? result.stderr : ''}`
+    await finishLanding($, landed(out, isFailed ? 1 : 0) ?? { state: 'failed', detail: null })
+  } catch {
+    return
+  }
+}
+
+function watchLanding($: EngineInterface, log: string, startedAt: number): void {
+  landWatch?.cancel()
+  const watch = $.clock.every(LAND_POLL_MS, async () => {
+    try {
+      const now = await $.clock.now()
+      const ran = await $.process.run(['tail', '-n', '40', log])
+      const outcome = landed(ran.stdout, null)
+      if (outcome === null && now - startedAt < LAND_GIVE_UP_MS) return
+      watch.cancel()
+      await finishLanding($, outcome ?? { state: 'failed', detail: 'Stopped watching after 30m.' })
+    } catch {
+      return
+    }
+  })
+  landWatch = watch
+}
+
+// Record how a landing ended, keep the streak and say so. Only a real
+// "land: landed" counts toward the streak, not a run with nothing to land.
+async function finishLanding($: EngineInterface, outcome: Pick<Landing, 'state' | 'detail'>): Promise<void> {
+  const now = await $.clock.now()
+  await update($, stats, s => bump(s, now, { landing: { ...outcome, at: now } }))
+  const isReal = outcome.state === 'landed' && /^\w+ on /.test(outcome.detail ?? '')
+  if (isReal || outcome.state === 'failed') {
+    const was = (await read($, streak)) ?? { current: 0, best: 0 }
+    const current = isReal ? was.current + 1 : 0
+    const next: Streak = { current, best: Math.max(was.best, current) }
+    await update($, streak, () => next)
+    await $.store.set('streak', next)
+  }
+  if (outcome.state === 'landed') {
+    $.ui.toast(`BOOM! Landed${outcome.detail === null ? '' : ` ${outcome.detail}`}.`)
+    await $.process.run(['sh', `${$.plugin.root}/scripts/play.sh`, 'Land'])
+  } else {
+    $.ui.toast(`BOOM! The landing failed${outcome.detail === null ? '.' : `: ${outcome.detail}`}`)
+  }
+}
+
+// Read the folded cards and the streak back from $.store, where they outlast
+// the session. A bad value keeps the default.
+async function loadKept($: EngineInterface): Promise<void> {
+  try {
+    const keptFolded: unknown = await $.store.get('folded')
+    if (Array.isArray(keptFolded)) {
+      const ids = keptFolded.filter((id): id is string => typeof id === 'string')
+      await update($, folded, () => ids)
+    }
+    const keptStreak: unknown = await $.store.get('streak')
+    if (typeof keptStreak === 'object' && keptStreak !== null) {
+      const { current, best } = keptStreak as { current?: unknown; best?: unknown }
+      if (typeof current === 'number' && typeof best === 'number') await update($, streak, () => ({ current, best }))
+    }
+  } catch {
+    return
+  }
+}
+
 export const register: Register = on => {
   let turnStartedAt = 0
   // Redraws the band and the pane each minute so the uptime stays current.
@@ -192,6 +363,7 @@ export const register: Register = on => {
     await update($, stats, s => s ?? bump(null, now, {}))
     await $.command.register({ name: 'boom', description: 'Open the Dr. BOOM pane' })
     await refreshSounds($)
+    await loadKept($)
     tick?.cancel()
     tick = $.clock.every(60000, () => $.ui.invalidate('ui.render'))
     return next(e)
@@ -215,20 +387,35 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     const now = await $.clock.now()
     const edit = EDIT_TOOLS.has(e.tool) ? 1 : 0
+    const path = edit === 1 ? about(e) : ''
+    const isLand = e.tool === 'Bash' && LAND.test(e.command)
     await update($, stats, s =>
       bump(s, now, {
         tools: (s?.tools ?? 0) + 1,
         edits: (s?.edits ?? 0) + edit,
         byTool: { ...(s?.byTool ?? {}), [e.tool]: (s?.byTool[e.tool] ?? 0) + 1 },
+        calls: [...(s?.calls ?? []).filter(at => now - at < CALLS_KEPT_MS), now].slice(-CALLS_KEPT),
+        touched:
+          path === ''
+            ? (s?.touched ?? {})
+            : { ...(s?.touched ?? {}), [path]: { count: (s?.touched[path]?.count ?? 0) + 1, at: now } },
+        landing: isLand ? { state: 'running', at: now, detail: null } : (s?.landing ?? null),
       }),
     )
-    return next(e)
+    const ran = await next(e)
+    await afterCall($, `${e.tool}: ${oneLine(about(e))}`, ran, isLand)
+    return ran
   }).catch(($, e, next) => next(e))
 
   on('turn.complete', async ($, e, next) => {
     const now = await $.clock.now()
     const seconds = turnStartedAt === 0 ? null : Math.round((now - turnStartedAt) / 1000)
-    await update($, stats, s => bump(s, now, { lastTurnSeconds: seconds }))
+    await update($, stats, s =>
+      bump(s, now, {
+        lastTurnSeconds: seconds,
+        turns: seconds === null ? (s?.turns ?? []) : [...(s?.turns ?? []), seconds].slice(-TURNS),
+      }),
+    )
     return next(e)
   }).catch(($, e, next) => next(e))
 
@@ -279,12 +466,25 @@ export const register: Register = on => {
 
     // Each part of the pane is its own bordered card with a colored title,
     // since a blank line between parts was too little to tell them apart.
+    // The button beside a title folds the card down to that title, and the
+    // folded set is kept in $.store so it outlasts the session.
+    const isFolded = await read($, folded)
+    const fold = async (id: string) => {
+      const was = await read($, folded)
+      const next = was.includes(id) ? was.filter(other => other !== id) : [...was, id]
+      await update($, folded, () => next)
+      // Losing the saved copy only means the fold lasts this session.
+      await $.store.set('folded', next).catch(() => undefined)
+    }
     const card = (id: string, title: string, body: RenderChildren) => (
       <Box key={`card:${id}`} flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>
-        <Text bold color="cyan">
-          {title}
-        </Text>
-        {body}
+        <Box columnGap={1}>
+          <Text bold color="cyan">
+            {title}
+          </Text>
+          <Button key={`fold:${id}`} label={isFolded.includes(id) ? '▸' : '▾'} onPress={() => void fold(id)} />
+        </Box>
+        {!isFolded.includes(id) && body}
       </Box>
     )
     // Every card draws its rows the same way: one line each, cut at the
@@ -310,7 +510,14 @@ export const register: Register = on => {
       </Box>
     )
     const hasHealth = r != null && (r.health != null || r.connectors != null || r.checks != null)
-    const landed = (tasks: readonly { state: string }[]) => tasks.filter(task => task.state === 'landed').length
+    const fuse = meter(s?.calls ?? [], now)
+    const kept = await read($, streak)
+    const byRecent = Object.entries(s?.touched ?? {}).sort((a, b) => b[1].at - a[1].at)
+    const touched = byRecent.slice(0, TOUCHED)
+    const touchedRest = byRecent.length - touched.length
+    // A path inside the repo, from its root.
+    const short = (path: string) => (r != null && path.startsWith(`${r.root}/`) ? path.slice(r.root.length + 1) : path)
+    const landedCount = (tasks: readonly { state: string }[]) => tasks.filter(task => task.state === 'landed').length
 
     return (
       <Box flexDirection="column">
@@ -326,10 +533,25 @@ export const register: Register = on => {
                   <Text bold>{s.prompts}</Text> prompts<Text dimColor> | </Text>
                   <Text bold>{s.tools}</Text> tool calls<Text dimColor> | </Text>
                   <Text bold>{s.edits}</Text> edits
+                  {s.failures > 0 && <Text color="yellow"> | {s.failures} failed</Text>}
                 </Text>
+                {s.lastFailure !== null && note('failure', `last failed: ${s.lastFailure}`)}
                 <Text dimColor>
                   up {age(now - s.startedAt)}
                   {s.lastTurnSeconds === null ? '' : ` | last turn ${s.lastTurnSeconds}s`}
+                </Text>
+                {s.turns.length > 0 && (
+                  <Text wrap="truncate-end">
+                    <Text dimColor>turns </Text>
+                    <Text color="cyan">{sparkline(s.turns)}</Text>
+                    <Text dimColor> longest {Math.max(...s.turns)}s</Text>
+                  </Text>
+                )}
+                <Text wrap="truncate-end">
+                  <Text dimColor>fuse  </Text>
+                  <Text color={fuse.isBoom ? 'red' : 'yellow'}>{fuse.bar}</Text>
+                  <Text dimColor> {fuse.rate}/min</Text>
+                  {fuse.isBoom && <Text color="red"> 💥 BOOM!</Text>}
                 </Text>
               </Box>
             )}
@@ -353,6 +575,23 @@ export const register: Register = on => {
                 </Text>
               </Box>
             ))}
+          </Box>,
+        )}
+        {card(
+          'files',
+          'Files touched',
+          <Box flexDirection="column">
+            {touched.length === 0 && <Text dimColor>No edits yet.</Text>}
+            {touched.map(([path, t]) => (
+              <Box key={`touched:${path}`}>
+                <Text wrap="truncate-end">
+                  <Text dimColor>{`${t.count}×`.padStart(4)} </Text>
+                  <Text bold>{short(path)}</Text>
+                  <Text dimColor> {age(now - t.at)} ago</Text>
+                </Text>
+              </Box>
+            ))}
+            {touchedRest > 0 && <Text dimColor>and {touchedRest} more</Text>}
           </Box>,
         )}
         {card(
@@ -381,6 +620,28 @@ export const register: Register = on => {
             </Box>
           ),
         )}
+        {(s?.landing != null || kept !== null) &&
+          card(
+            'landing',
+            'Landing',
+            <Box flexDirection="column">
+              {s?.landing == null && <Text dimColor>No landing this session.</Text>}
+              {s?.landing?.state === 'running' && row('land', 'busy', 'Landing', `started ${age(now - s.landing.at)} ago`)}
+              {s?.landing?.state === 'landed' &&
+                row('land', 'ok', 'Landed', `${s.landing.detail ?? ''} ${age(now - s.landing.at)} ago`)}
+              {s?.landing?.state === 'failed' && row('land', 'failed', 'Land failed', `${age(now - s.landing.at)} ago`)}
+              {s?.landing?.state === 'failed' && s.landing.detail !== null && note('land:why', s.landing.detail, 'red')}
+              {kept !== null && (
+                <Text wrap="truncate-end">
+                  <Text color={kept.current > 0 ? 'yellow' : undefined}>{kept.current > 0 ? '🔥' : '○'} </Text>
+                  <Text bold>
+                    {kept.current} landing{kept.current === 1 ? '' : 's'} in a row
+                  </Text>
+                  <Text dimColor> | best {kept.best}</Text>
+                </Text>
+              )}
+            </Box>,
+          )}
         {r != null &&
           hasHealth &&
           card(
@@ -466,7 +727,7 @@ export const register: Register = on => {
                     `plan:${plan.id}:goal`,
                     PLAN_MARKS[plan.state],
                     plan.goal,
-                    `${plan.id} | ${plan.state}, ${landed(plan.tasks)} of ${plan.tasks.length} landed`,
+                    `${plan.id} | ${plan.state}, ${landedCount(plan.tasks)} of ${plan.tasks.length} landed`,
                   )}
                   {plan.tasks.map(task =>
                     row(
@@ -508,6 +769,9 @@ export const register: Register = on => {
             </Box>
           </Box>,
         )}
+        <Text dimColor italic wrap="truncate-end">
+          {' '}Sergeant Stupid: "{QUIPS[(s?.prompts ?? 0) % QUIPS.length]}"
+        </Text>
       </Box>
     )
     // Nothing beneath draws a plugin's pane, so next(e) would leave it blank.

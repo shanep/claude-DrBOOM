@@ -18,8 +18,12 @@ if [ "$event" = SessionEnd ] && [ ! -t 0 ]; then
     esac
 fi
 
+# Land is the pane's own event, for work that landed. A profile without a
+# Land sound plays its start sound instead.
 file=$(find_sound "$(active_profile)" "$event") ||
     file=$(find_sound default "$event") ||
+    { [ "$event" = Land ] && file=$(find_sound "$(active_profile)" SessionStart); } ||
+    { [ "$event" = Land ] && file=$(find_sound default SessionStart); } ||
     exit 0
 play_file "$file"
 exit 0

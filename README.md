@@ -32,9 +32,25 @@ of the session.
 ## Pane
 
 `/boom` opens a pane beside the chat with the same counts as the band, the six
-tools Claude called most, the repo, and a sound board. Each part is its own card
-with a rounded border and a cyan title, so the parts are easy to tell apart. The
-Repo, Health and Sessions cards come from the
+tools Claude called most, the files this session edited, the repo, the last
+landing, and a sound board. Each part is its own card with a rounded border and
+a cyan title. The button beside a title folds the card down to that title, and
+the pane remembers which cards are folded across sessions. Every row is one
+line, cut at the card's edge, with a mark for how it stands: a green `✓` when
+it is done or fine, a yellow `✗` for a problem, a red `✗` when it failed, a cyan
+`●` while it runs and `○` while it waits.
+
+Session has the counts, how many tool calls failed or were refused (with the
+last one), a sparkline of how long the last 20 turns took, and a fuse that
+burns down as tool calls come in. The fuse counts the calls in the last minute
+and goes off with a 💥 at 30. Files touched lists the files edited, newest
+first, with how many times each. Landing follows `~/.claude/bin/land` (or a
+repo's own `land` command) while it runs, even in the background, and then
+says what landed or why it failed. A landing plays the `Land` sound, which
+falls back to the start sound. The card also keeps a streak of landings in a
+row that passed, with the best one, across sessions.
+
+The Repo, Health, Sessions, Auto mode and Plans cards come from the
 [workflow](https://github.com/shanep/claude-workflow) plugin. Repo has this
 session's branch and changed files, files to rebase on, edits it paused, its
 ports, how the worktree setup went, and whether it keeps the computer awake.
@@ -44,13 +60,16 @@ the repo and what they are changing. With workflow the session counts also show
 what the session has cost against its budget, how far through its task list it
 is and a guess at what is left, and each other session gets the same line,
 yellow once it is over budget. Without workflow the Repo card says "Nothing
-yet." Below it, the newest workflow plans list each task, whether it is waiting,
-running, landed or failed, and what it cost. An Auto mode card counts the calls
-auto mode let through and refused in this session and shows the newest three.
+yet." Plans lists the newest workflow plans with each task, whether it is
+waiting, running, landed or failed, and what it cost. Auto mode counts the calls
+auto mode let through and refused in this session and shows the newest three,
+with the reason under a refusal.
+
 The board has a button for each profile (the active one has a `*`), Mute or
 Unmute, and a button that plays each event's sound. With the pane focused, `m`
 mutes or unmutes and `1` to `7` play Start, Prompt, Notify, Permission,
-Subagent, Stop and End.
+Subagent, Stop and End. Sergeant Stupid has a new line at the bottom of the
+pane every turn.
 
 The pane docks beside the transcript in fullscreen from 110 columns and sits
 above the prompt otherwise. It redraws when the session does something and
@@ -123,6 +142,7 @@ sounds/
     SubagentStop.wav       A subagent finished
     Stop.wav               Claude finished responding
     SessionEnd.wav         The session exits (not on /clear or /resume)
+    Land.wav               Work landed (the pane plays it, falls back to SessionStart)
   boom/
     Stop.mp3
 ```
