@@ -91,7 +91,7 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
     expect((await ui.find({ type: 'Text', text: /rm -rf/ }))?.text).toBe('1m ago refused Bash: rm -rf build')
     expect((await ui.find({ type: 'Text', text: /^Connectors/ }))?.text).toBe('Connectors: 6 connected, 1 not working')
     expect((await ui.find({ type: 'Text', text: /Gmail/ }))?.text).toBe('- claude.ai Gmail: Needs authentication')
-    expect((await ui.find({ type: 'Text', text: /^Health/ }))?.text).toBe('Health: 1 problem at head')
+    expect((await ui.find({ type: 'Text', text: /^Health:/ }))?.text).toBe('Health: 1 problem at head')
     expect((await ui.find({ type: 'Text', text: /^- Local/ }))?.text).toBe('- Local master has 1 commit(s) that are not on origin. Land them.')
     expect((await ui.find({ type: 'Text', text: /^mh2k1/ }))?.text).toBe('mh2k1: Add dark mode | running, 1 of 3 landed')
     expect((await ui.find({ type: 'Text', text: /toggle/ }))?.text).toBe('  toggle: failed (Tests fail.)')
@@ -101,6 +101,13 @@ test('the pane shows what the workflow plugin knows', async ($, on) => {
       '$1.20 of $5.00 | 2 of 5 tasks, on Fix login | about 20m and $1.80 left | 5h limit 19%',
     )
     expect((await ui.find({ type: 'Text', text: /\$6\.00/ }))?.text).toBe('  $6.00 of $5.00')
+    const texts = (await ui.findAll({ type: 'Text' })).map(t => t.text)
+    const titles = ['Session', 'Top tools', 'Repo', 'Health', 'Sessions', 'Auto mode', 'Plans', 'Sounds'].map(t =>
+      texts.indexOf(t),
+    )
+    expect(titles.every((at, i) => at >= 0 && (i === 0 || at > (titles[i - 1] ?? -1)))).toBe(true)
+    const health = texts.findIndex(t => t?.startsWith('Health:'))
+    expect(health > texts.indexOf('Health') && health < texts.indexOf('Sessions')).toBe(true)
     await ui.unmount()
   }
 })

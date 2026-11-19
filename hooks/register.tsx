@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, Timer } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren, Timer } from 'claude-code'
 
 import type { Progress, Sounds, Stats } from '../types'
 
@@ -248,167 +248,212 @@ export const register: Register = on => {
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
 
+    // Each part of the pane is its own bordered card with a colored title,
+    // since a blank line between parts was too little to tell them apart.
+    const card = (id: string, title: string, body: RenderChildren) => (
+      <Box key={`card:${id}`} flexDirection="column" borderStyle="round" borderDimColor paddingX={1}>
+        <Text bold color="cyan">
+          {title}
+        </Text>
+        {body}
+      </Box>
+    )
+    const hasHealth = r != null && (r.health != null || r.connectors != null || r.checks != null)
+
     return (
       <Box flexDirection="column">
-        <Text bold>Session</Text>
-        {s === null ? (
-          <Text dimColor>Nothing yet.</Text>
-        ) : (
+        {card(
+          'session',
+          'Session',
           <Box flexDirection="column">
-            <Text>
-              {s.prompts} prompts | {s.tools} tool calls | {s.edits} edits
-            </Text>
-            <Text dimColor>
-              up {age(now - s.startedAt)}
-              {s.lastTurnSeconds === null ? '' : ` | last turn: ${s.lastTurnSeconds}s`}
-            </Text>
-          </Box>
-        )}
-        {r?.progress != null && <Text color={isOver(r.progress) ? 'yellow' : undefined}>{progress(r.progress)}</Text>}
-        <Text> </Text>
-        <Text bold>Top tools</Text>
-        {top.length === 0 && <Text dimColor>No tool calls yet.</Text>}
-        {top.map(([tool, n]) => (
-          <Box key={`tool:${tool}`}>
-            <Text>
-              {String(n).padStart(4)} {tool}
-            </Text>
-          </Box>
-        ))}
-        <Text> </Text>
-        <Text bold>Repo</Text>
-        {r == null ? (
-          <Text dimColor>Nothing yet.</Text>
-        ) : (
-          <Box flexDirection="column">
-            <Text>
-              {r.branch ?? 'no branch'}
-              {r.target === null || r.target === r.branch ? '' : ` | lands on ${r.target}`}
-            </Text>
-            <Text dimColor>{r.files.length === 0 ? 'No changes yet.' : `Changing ${files(r.files)}`}</Text>
-            {r.ports != null && (
-              <Text dimColor>
-                Ports {r.ports} to {r.ports + 99}
-              </Text>
-            )}
-            {r.setup != null && <Text dimColor>{r.setup}</Text>}
-            {r.isAwake === true && <Text dimColor>Keeping this computer awake</Text>}
-            {r.health != null && r.health.problems.length === 0 && (
-              <Text dimColor>Healthy at head, checked {age(now - r.health.at)} ago</Text>
-            )}
-            {r.health != null && r.health.problems.length > 0 && (
-              <Text color="yellow">
-                Health: {r.health.problems.length} problem{r.health.problems.length === 1 ? '' : 's'} at head
-              </Text>
-            )}
-            {r.health?.problems.map((problem, i) => (
-              <Box key={`health:${i}`}>
-                <Text dimColor>- {problem.split('\n')[0]}</Text>
-              </Box>
-            ))}
-            {r.connectors != null && (
-              <Text dimColor={r.connectors.problems.length === 0} color={r.connectors.problems.length === 0 ? undefined : 'yellow'}>
-                Connectors: {r.connectors.ready} connected
-                {r.connectors.problems.length === 0 ? '' : `, ${r.connectors.problems.length} not working`}
-              </Text>
-            )}
-            {r.connectors?.problems.map((problem, i) => (
-              <Box key={`connector:${i}`}>
-                <Text dimColor>- {problem}</Text>
-              </Box>
-            ))}
-            {r.checks != null && (
-              <Text dimColor={r.checks.busy < r.checks.slots} color={r.checks.busy < r.checks.slots ? undefined : 'yellow'}>
-                Checks: {r.checks.busy} of {r.checks.slots} slots busy
-              </Text>
-            )}
-            {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
-            {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
-            {r.peers.map((peer, i) => (
-              <Box key={`peer:${i}`} flexDirection="column">
+            {s === null ? (
+              <Text dimColor>Nothing yet.</Text>
+            ) : (
+              <Box flexDirection="column">
                 <Text>
-                  {peer.topic === null ? 'A session' : `"${peer.topic}"`} {peer.where}
-                  {peer.files.length === 0 ? '' : `: ${files(peer.files)}`}
+                  {s.prompts} prompts | {s.tools} tool calls | {s.edits} edits
                 </Text>
-                {peer.progress != null && (
-                  <Text dimColor={!isOver(peer.progress)} color={isOver(peer.progress) ? 'yellow' : undefined}>
-                    {'  '}
-                    {progress(peer.progress)}
-                  </Text>
-                )}
-              </Box>
-            ))}
-            {r.paused.map(p => (
-              <Box key={`paused:${p.file}:${p.at}`}>
                 <Text dimColor>
-                  Paused an edit to {p.file} {age(now - p.at)} ago
+                  up {age(now - s.startedAt)}
+                  {s.lastTurnSeconds === null ? '' : ` | last turn: ${s.lastTurnSeconds}s`}
+                </Text>
+              </Box>
+            )}
+            {r?.progress != null && <Text color={isOver(r.progress) ? 'yellow' : undefined}>{progress(r.progress)}</Text>}
+          </Box>,
+        )}
+        {card(
+          'tools',
+          'Top tools',
+          <Box flexDirection="column">
+            {top.length === 0 && <Text dimColor>No tool calls yet.</Text>}
+            {top.map(([tool, n]) => (
+              <Box key={`tool:${tool}`}>
+                <Text>
+                  {String(n).padStart(4)} {tool}
                 </Text>
               </Box>
             ))}
-          </Box>
+          </Box>,
         )}
-        {r?.audit != null && (
-          <Box flexDirection="column">
-            <Text> </Text>
-            <Text bold>Auto mode</Text>
-            <Text dimColor>
-              Let {r.audit.allowed} through | refused {r.audit.denied} | /audit lists them
-            </Text>
-            {r.audit.recent.map((entry, i) => (
-              <Box key={`audit:${i}`}>
-                <Text dimColor={entry.decision === 'allow'} color={entry.decision === 'deny' ? 'yellow' : undefined}>
-                  {age(now - entry.at)} ago {entry.decision === 'allow' ? 'let through' : 'refused'} {entry.tool}: {entry.what}
+        {card(
+          'repo',
+          'Repo',
+          r == null ? (
+            <Text dimColor>Nothing yet.</Text>
+          ) : (
+            <Box flexDirection="column">
+              <Text>
+                {r.branch ?? 'no branch'}
+                {r.target === null || r.target === r.branch ? '' : ` | lands on ${r.target}`}
+              </Text>
+              <Text dimColor>{r.files.length === 0 ? 'No changes yet.' : `Changing ${files(r.files)}`}</Text>
+              {r.upstream.length > 0 && <Text color="yellow">Rebase: {r.target} changed {files(r.upstream)}</Text>}
+              {r.paused.map(p => (
+                <Box key={`paused:${p.file}:${p.at}`}>
+                  <Text dimColor>
+                    Paused an edit to {p.file} {age(now - p.at)} ago
+                  </Text>
+                </Box>
+              ))}
+              {r.ports != null && (
+                <Text dimColor>
+                  Ports {r.ports} to {r.ports + 99}
                 </Text>
-              </Box>
-            ))}
-          </Box>
+              )}
+              {r.setup != null && <Text dimColor>{r.setup}</Text>}
+              {r.isAwake === true && <Text dimColor>Keeping this computer awake</Text>}
+            </Box>
+          ),
         )}
-        {r?.plans != null && r.plans.length > 0 && (
-          <Box flexDirection="column">
-            <Text> </Text>
-            <Text bold>Plans</Text>
-            {r.plans.map(plan => (
-              <Box key={`plan:${plan.id}`} flexDirection="column">
-                <Text color={plan.state === 'failed' ? 'red' : undefined}>
-                  {plan.id}: {plan.goal} | {plan.state}, {plan.tasks.filter(task => task.state === 'landed').length} of {plan.tasks.length} landed
+        {r != null &&
+          hasHealth &&
+          card(
+            'health',
+            'Health',
+            <Box flexDirection="column">
+              {r.health != null && r.health.problems.length === 0 && (
+                <Text dimColor>Healthy at head, checked {age(now - r.health.at)} ago</Text>
+              )}
+              {r.health != null && r.health.problems.length > 0 && (
+                <Text color="yellow">
+                  Health: {r.health.problems.length} problem{r.health.problems.length === 1 ? '' : 's'} at head
                 </Text>
-                {plan.tasks.map(task => (
-                  <Box key={`task:${plan.id}:${task.id}`}>
-                    <Text dimColor={task.state !== 'failed'} color={task.state === 'failed' ? 'red' : undefined}>
+              )}
+              {r.health?.problems.map((problem, i) => (
+                <Box key={`health:${i}`}>
+                  <Text dimColor>- {problem.split('\n')[0]}</Text>
+                </Box>
+              ))}
+              {r.connectors != null && (
+                <Text dimColor={r.connectors.problems.length === 0} color={r.connectors.problems.length === 0 ? undefined : 'yellow'}>
+                  Connectors: {r.connectors.ready} connected
+                  {r.connectors.problems.length === 0 ? '' : `, ${r.connectors.problems.length} not working`}
+                </Text>
+              )}
+              {r.connectors?.problems.map((problem, i) => (
+                <Box key={`connector:${i}`}>
+                  <Text dimColor>- {problem}</Text>
+                </Box>
+              ))}
+              {r.checks != null && (
+                <Text dimColor={r.checks.busy < r.checks.slots} color={r.checks.busy < r.checks.slots ? undefined : 'yellow'}>
+                  Checks: {r.checks.busy} of {r.checks.slots} slots busy
+                </Text>
+              )}
+            </Box>,
+          )}
+        {r != null &&
+          card(
+            'sessions',
+            'Sessions',
+            <Box flexDirection="column">
+              {r.peers.length === 0 && <Text dimColor>No other sessions.</Text>}
+              {r.peers.map((peer, i) => (
+                <Box key={`peer:${i}`} flexDirection="column">
+                  <Text>
+                    {peer.topic === null ? 'A session' : `"${peer.topic}"`} {peer.where}
+                    {peer.files.length === 0 ? '' : `: ${files(peer.files)}`}
+                  </Text>
+                  {peer.progress != null && (
+                    <Text dimColor={!isOver(peer.progress)} color={isOver(peer.progress) ? 'yellow' : undefined}>
                       {'  '}
-                      {task.id}: {task.state}
-                      {task.usd == null ? '' : `, ${dollars(task.usd)}`}
-                      {task.note === null ? '' : ` (${task.note.split('\n')[0]})`}
+                      {progress(peer.progress)}
                     </Text>
-                  </Box>
-                ))}
-              </Box>
-            ))}
-          </Box>
+                  )}
+                </Box>
+              ))}
+            </Box>,
+          )}
+        {r?.audit != null &&
+          card(
+            'audit',
+            'Auto mode',
+            <Box flexDirection="column">
+              <Text dimColor>
+                Let {r.audit.allowed} through | refused {r.audit.denied} | /audit lists them
+              </Text>
+              {r.audit.recent.map((entry, i) => (
+                <Box key={`audit:${i}`}>
+                  <Text dimColor={entry.decision === 'allow'} color={entry.decision === 'deny' ? 'yellow' : undefined}>
+                    {age(now - entry.at)} ago {entry.decision === 'allow' ? 'let through' : 'refused'} {entry.tool}: {entry.what}
+                  </Text>
+                </Box>
+              ))}
+            </Box>,
+          )}
+        {r?.plans != null &&
+          r.plans.length > 0 &&
+          card(
+            'plans',
+            'Plans',
+            <Box flexDirection="column">
+              {r.plans.map(plan => (
+                <Box key={`plan:${plan.id}`} flexDirection="column">
+                  <Text color={plan.state === 'failed' ? 'red' : undefined}>
+                    {plan.id}: {plan.goal} | {plan.state}, {plan.tasks.filter(task => task.state === 'landed').length} of {plan.tasks.length} landed
+                  </Text>
+                  {plan.tasks.map(task => (
+                    <Box key={`task:${plan.id}:${task.id}`}>
+                      <Text dimColor={task.state !== 'failed'} color={task.state === 'failed' ? 'red' : undefined}>
+                        {'  '}
+                        {task.id}: {task.state}
+                        {task.usd == null ? '' : `, ${dollars(task.usd)}`}
+                        {task.note === null ? '' : ` (${task.note.split('\n')[0]})`}
+                      </Text>
+                    </Box>
+                  ))}
+                </Box>
+              ))}
+            </Box>,
+          )}
+        {card(
+          'sounds',
+          `Sounds${board?.isMuted === true ? ' (muted)' : ''}`,
+          <Box flexDirection="column">
+            <Box flexWrap="wrap">
+              {(board?.profiles ?? []).map(name => (
+                <Button
+                  key={`profile:${name}`}
+                  label={name === board?.active ? `* ${name}` : name}
+                  onPress={() => void change([name])}
+                />
+              ))}
+              <Button
+                key="mute"
+                hotkey="m"
+                label={board?.isMuted === true ? 'Unmute' : 'Mute'}
+                onPress={() => void change([board?.isMuted === true ? 'unmute' : 'mute'])}
+              />
+            </Box>
+            <Text dimColor>Play:</Text>
+            <Box flexWrap="wrap">
+              {EVENTS.map(([event, label], i) => (
+                <Button key={`play:${event}`} hotkey={String(i + 1)} label={label} onPress={() => void play(event)} />
+              ))}
+            </Box>
+          </Box>,
         )}
-        <Text> </Text>
-        <Text bold>Sounds{board?.isMuted === true ? ' (muted)' : ''}</Text>
-        <Box flexWrap="wrap">
-          {(board?.profiles ?? []).map(name => (
-            <Button
-              key={`profile:${name}`}
-              label={name === board?.active ? `* ${name}` : name}
-              onPress={() => void change([name])}
-            />
-          ))}
-          <Button
-            key="mute"
-            hotkey="m"
-            label={board?.isMuted === true ? 'Unmute' : 'Mute'}
-            onPress={() => void change([board?.isMuted === true ? 'unmute' : 'mute'])}
-          />
-        </Box>
-        <Text dimColor>Play:</Text>
-        <Box flexWrap="wrap">
-          {EVENTS.map(([event, label], i) => (
-            <Button key={`play:${event}`} hotkey={String(i + 1)} label={label} onPress={() => void play(event)} />
-          ))}
-        </Box>
       </Box>
     )
     // Nothing beneath draws a plugin's pane, so next(e) would leave it blank.
